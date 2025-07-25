@@ -1,0 +1,32 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vs/*
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/CodeChunks.db
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/CodeChunks.db-shm
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/CodeChunks.db-wal
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/SemanticSymbols.db
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/SemanticSymbols.db-shm
+.vs/blind-test-app/CopilotIndices/17.12.38.29086/SemanticSymbols.db-wal
+server/package-lock.json

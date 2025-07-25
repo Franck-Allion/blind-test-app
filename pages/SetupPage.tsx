@@ -1,0 +1,170 @@
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useGame } from '../contexts/GameContext';
+import { SONG_CATALOG } from '../services/mockData';
+import { GameSettings } from '../types';
+import { SlidersHorizontal, ListMusic, Check, ArrowRight } from 'lucide-react';
+import { socketService } from '../services/socketService';
+
+const SetupPage = () => {
+  const navigate = useNavigate();
+  const { state, dispatch } = useGame();
+  
+  const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
+  const [settings, setSettings] = useState<GameSettings>({
+    timeToAnswer: 60,
+    playsPerSong: 2,
+    pauseBetweenPlays: 3,
+  });
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [error, setError] = useState('');
+
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    SONG_CATALOG.forEach(song => song.tags.forEach(tag => tags.add(tag)));
+    return Array.from(tags).sort();
+  }, []);
+
+  const filteredSongs = useMemo(() => {
+    if (activeTags.size === 0) {
+      return SONG_CATALOG;
+    }
+    return SONG_CATALOG.filter(song => song.tags.some(tag => activeTags.has(tag)));
+  }, [activeTags]);
+
+  const handleToggleSong = (songId: string) => {
+    setSelectedSongs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(songId)) {
+        newSet.delete(songId);
+      } else {
+        newSet.add(songId);
+      }
+      return newSet;
+    });
+  };
+  
+  const handleToggleTag = (tag: string) => {
+    setActiveTags(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(tag)) {
+            newSet.delete(tag);
+        } else {
+            newSet.add(tag);
+        }
+        return newSet;
+    });
+  };
+
+  const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSettings({ ...settings, [e.target.name]: parseInt(e.target.value, 10) });
+  };
+  
+  const handleSelectAll = () => {
+      setSelectedSongs(new Set(filteredSongs.map(s => s.id)));
+  };
+  
+  const handleDeselectAll = () => {
+      setSelectedSongs(new Set());
+  };
+
+  const handleCreateGame = async () => {
+    if (selectedSongs.size === 0) {
+      setError('Please select at least one song.');
+      return;
+    }
+    setError('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+        const { gameId, organizerPlayerId } = await socketService.createGame({ settings, songIds: Array.from(selectedSongs) });
+        
+        // Persist organizer's identity before navigating
+        localStorage.setItem(`blindtest-pro-playerId-${gameId}`, organizerPlayerId);
+        localStorage.setItem(`blindtest-pro-isOrganizer-${gameId}`, 'true');
+
+        navigate(`/game/${gameId}`);
+    } catch(err) {
+        setError('Failed to create game. Please try again.');
+        dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <div>
+        <h1 className="text-4xl font-bold text-center mb-2">Game Setup</h1>
+        <p className="text-center text-slate-400">Configure your blind test. Choose your songs and set the rules.</p>
+      </div>
+
+      {/* Settings */}
+      <div className="bg-slate-800 p-6 rounded-lg shadow-xl">
+        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><SlidersHorizontal className="text-indigo-400"/> Game Rules</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label htmlFor="timeToAnswer" className="block text-sm font-medium text-slate-300 mb-1">Time to Answer (seconds)</label>
+            <input type="number" name="timeToAnswer" value={settings.timeToAnswer} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+          </div>
+          <div>
+            <label htmlFor="playsPerSong" className="block text-sm font-medium text-slate-300 mb-1">Plays per Song</label>
+            <input type="number" name="playsPerSong" value={settings.playsPerSong} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+          </div>
+          <div>
+            <label htmlFor="pauseBetweenPlays" className="block text-sm font-medium text-slate-300 mb-1">Pause Between Plays (seconds)</label>
+            <input type="number" name="pauseBetweenPlays" value={settings.pauseBetweenPlays} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+          </div>
+        </div>
+      </div>
+      
+      {/* Song Selection */}
+      <div className="bg-slate-800 p-6 rounded-lg shadow-xl">
+        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><ListMusic className="text-emerald-400"/> Select Playlist ({selectedSongs.size} selected)</h2>
+        
+        <div className="mb-4">
+            <h3 className="text-lg font-medium mb-2 text-slate-300">Filter by Tags:</h3>
+            <div className="flex flex-wrap gap-2">
+                {allTags.map(tag => (
+                    <button key={tag} onClick={() => handleToggleTag(tag)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${activeTags.has(tag) ? 'bg-emerald-500 text-white' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                        {tag}
+                    </button>
+                ))}
+            </div>
+        </div>
+        
+        <div className="flex gap-2 mb-4">
+            <button onClick={handleSelectAll} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-md">Select All Visible</button>
+            <button onClick={handleDeselectAll} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-md">Deselect All</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto pr-2">
+          {filteredSongs.map(song => (
+            <button key={song.id} onClick={() => handleToggleSong(song.id)}
+              className={`p-4 rounded-lg text-left transition-all duration-200 border-2 ${selectedSongs.has(song.id) ? 'bg-slate-700 border-emerald-500' : 'bg-slate-900 border-slate-700 hover:bg-slate-700'}`}>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg">{song.title}</p>
+                        <p className="text-sm text-slate-400">{song.artist} ({song.year})</p>
+                    </div>
+                    {selectedSongs.has(song.id) && <div className="bg-emerald-500 rounded-full p-1"><Check size={16} className="text-white"/></div>}
+                </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {song.tags.map(tag => <span key={tag} className="text-xs bg-slate-600 px-2 py-0.5 rounded-full">{tag}</span>)}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      <div className="flex flex-col items-center justify-center mt-8">
+        {error && <p className="text-red-400 mb-4">{error}</p>}
+        <button onClick={handleCreateGame} disabled={selectedSongs.size === 0 || state.isLoading}
+          className="flex items-center gap-3 px-8 py-4 bg-emerald-600 text-white font-bold text-xl rounded-full shadow-lg hover:bg-emerald-500 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300 disabled:bg-slate-600 disabled:cursor-not-allowed">
+          {state.isLoading ? 'Creating Game...' : 'Start Lobby & Get Link'}
+          <ArrowRight size={24}/>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SetupPage;
