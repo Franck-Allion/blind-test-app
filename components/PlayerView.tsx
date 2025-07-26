@@ -23,6 +23,7 @@ const PlayerView = () => {
   const playsCounterRef = useRef(0);
 
   const currentSong = game ? game.playlist[game.currentSongIndex] : null;
+  const isMovieSong = currentSong?.tags.includes('Movie') && currentSong.movieTitle;
 
   useEffect(() => {
     if (game && playerId) {
@@ -41,10 +42,18 @@ const PlayerView = () => {
     setShowMcq(false);
     
     // Prepare MCQ options immediately
-    const correctAnswer = `${currentSong.title} - ${currentSong.artist}`;
-    const shuffledDistractors = [...currentSong.distractors].sort(() => Math.random() - 0.5);
-    const selectedDistractors = shuffledDistractors.slice(0, 3);
-    const options = [correctAnswer, ...selectedDistractors];
+    let options: string[];
+    if (isMovieSong) {
+        const correctAnswer = currentSong.movieTitle!;
+        const shuffledDistractors = [...currentSong.distractors].sort(() => Math.random() - 0.5);
+        const selectedDistractors = shuffledDistractors.slice(0, 3);
+        options = [correctAnswer, ...selectedDistractors];
+    } else {
+        const correctAnswer = `${currentSong.title} - ${currentSong.artist}`;
+        const shuffledDistractors = [...currentSong.distractors].sort(() => Math.random() - 0.5);
+        const selectedDistractors = shuffledDistractors.slice(0, 3);
+        options = [correctAnswer, ...selectedDistractors];
+    }
     const finalShuffledOptions = options.sort(() => Math.random() - 0.5);
     setMcqOptions(finalShuffledOptions);
 
@@ -160,7 +169,7 @@ const PlayerView = () => {
 
       <div className="bg-slate-900 rounded-lg p-6 mb-6 flex flex-col items-center justify-center">
         <Volume2 size={48} className="text-indigo-400 mb-4 animate-pulse" />
-        <p className="text-slate-300">Listen carefully... What is this song?</p>
+        <p className="text-slate-300">{isMovieSong ? 'Listen carefully... What movie is this from?' : 'Listen carefully... What is this song?'}</p>
       </div>
 
       {hasAnswered ? (
@@ -173,10 +182,14 @@ const PlayerView = () => {
             {!showMcq ? (
               <>
                 <form onSubmit={onFreeTextSubmit} className="space-y-4">
-                    <p className="font-semibold text-lg text-center">Type your answer (5 points for both, 2 for one)</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" placeholder="Song Title" value={userAnswer.title} onChange={e => setUserAnswer({...userAnswer, title: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
-                        <input type="text" placeholder="Artist" value={userAnswer.artist} onChange={e => setUserAnswer({...userAnswer, artist: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
+                    <p className="font-semibold text-lg text-center">
+                      {isMovieSong ? 'Type your answer (3 points)' : 'Type your answer (5 points for both, 2 for one)'}
+                    </p>
+                    <div className={isMovieSong ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
+                        <input type="text" placeholder={isMovieSong ? "Movie Name" : "Song Title"} value={userAnswer.title} onChange={e => setUserAnswer({...userAnswer, title: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
+                        {!isMovieSong && (
+                          <input type="text" placeholder="Artist" value={userAnswer.artist} onChange={e => setUserAnswer({...userAnswer, artist: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
+                        )}
                     </div>
                     <button type="submit" className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 font-bold p-3 rounded-md transition-colors"><Send size={18}/>Submit Answer</button>
                 </form>

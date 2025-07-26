@@ -32,6 +32,8 @@ const RoundOverView = () => {
     if (!currentSong) {
         return <div>Loading...</div>;
     }
+    
+    const isMovieSong = currentSong.tags.includes('Movie') && currentSong.movieTitle;
 
     return (
         <div className="max-w-4xl mx-auto text-center animate-slide-in-up">
@@ -39,9 +41,18 @@ const RoundOverView = () => {
             
             <div className="bg-slate-800 p-6 rounded-lg mb-6">
                 <h2 className="text-xl font-semibold mb-2 text-slate-300">The correct answer was:</h2>
-                <p className="text-3xl font-bold text-emerald-400 flex items-center justify-center gap-3">
-                    <Music /> {currentSong.title} - {currentSong.artist}
-                </p>
+                {isMovieSong ? (
+                  <>
+                    <p className="text-3xl font-bold text-emerald-400 flex items-center justify-center gap-3">
+                        <Music /> {currentSong.movieTitle}
+                    </p>
+                    <p className="text-slate-400 mt-1">(from the song "{currentSong.title}" by {currentSong.artist})</p>
+                  </>
+                ) : (
+                  <p className="text-3xl font-bold text-emerald-400 flex items-center justify-center gap-3">
+                      <Music /> {currentSong.title} - {currentSong.artist}
+                  </p>
+                )}
             </div>
 
             {showScores && (

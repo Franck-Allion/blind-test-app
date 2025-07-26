@@ -16,7 +16,24 @@ interface AnswerEvaluation {
  * @returns A promise that resolves to an object indicating if the title and/or artist match.
  */
 export const evaluateAnswer = async (playerAnswer: { title: string; artist: string }, correctSong: Song): Promise<AnswerEvaluation> => {
-  const prompt = `
+  const isMovieSong = correctSong.tags.includes('Movie') && correctSong.movieTitle;
+
+  const prompt = isMovieSong ?
+  `
+    You are a lenient judge in a music quiz game. The player needs to guess the movie title from a song.
+    Correct Answer:
+    - Movie Name: "${correctSong.movieTitle}"
+
+    Player's Answer:
+    - Movie Name: "${playerAnswer.title}"
+    
+    Analyze the player's answer. The movie name is a match if it's very close to the correct movie name (e.g., "Lion King" for "The Lion King").
+    The 'artistMatch' is not applicable for this question.
+
+    Return your evaluation in the specified JSON format. The 'titleMatch' should be your evaluation of the movie name. The 'artistMatch' should always be false.
+  `
+  :
+  `
     You are a lenient judge in a music quiz game. A player submitted an answer. I need you to check if their answer is a reasonable match for the correct song, even with typos or minor errors.
 
     Correct Answer:
@@ -54,9 +71,10 @@ export const evaluateAnswer = async (playerAnswer: { title: string; artist: stri
   } catch (error) {
     console.error("Gemini API Error (evaluateAnswer):", error);
     // Fallback to strict equality if API fails
+    const fallbackTitle = isMovieSong ? correctSong.movieTitle! : correctSong.title;
     return {
-      titleMatch: playerAnswer.title.toLowerCase() === correctSong.title.toLowerCase(),
-      artistMatch: playerAnswer.artist.toLowerCase() === correctSong.artist.toLowerCase(),
+      titleMatch: playerAnswer.title.toLowerCase() === fallbackTitle.toLowerCase(),
+      artistMatch: isMovieSong ? false : playerAnswer.artist.toLowerCase() === correctSong.artist.toLowerCase(),
     };
   }
 };

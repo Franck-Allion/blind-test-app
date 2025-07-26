@@ -1,4 +1,5 @@
 
+
 import { useCallback, useRef, useEffect } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { evaluateAnswer } from '../services/geminiService';
@@ -30,11 +31,18 @@ export const useGameActions = () => {
         socketService.send({type: 'SET_LOADING', payload: true});
         const evaluation = await evaluateAnswer(answer, currentSong);
         
+        const isMovieSong = currentSong.tags.includes('Movie') && currentSong.movieTitle;
         let score = 0;
-        if (evaluation.titleMatch && evaluation.artistMatch) {
-            score = 5;
-        } else if (evaluation.titleMatch || evaluation.artistMatch) {
-            score = 2;
+        if (isMovieSong) {
+            if (evaluation.titleMatch) {
+                score = 3; // 3 points for correct movie title
+            }
+        } else {
+            if (evaluation.titleMatch && evaluation.artistMatch) {
+                score = 5;
+            } else if (evaluation.titleMatch || evaluation.artistMatch) {
+                score = 2;
+            }
         }
 
         const playerAnswer: PlayerAnswer = {
@@ -56,17 +64,31 @@ export const useGameActions = () => {
 
         const currentSong = game.playlist[game.currentSongIndex];
         if (!currentSong) return;
-
-        const correctAnswer = `${currentSong.title} - ${currentSong.artist}`;
-        const score = choice === correctAnswer ? 1 : 0;
         
+        const isMovieSong = currentSong.tags.includes('Movie') && currentSong.movieTitle;
+
+        let correctAnswerText: string;
+        let submittedTitle: string = choice;
+        let submittedArtist: string | undefined = undefined;
+
+        if (isMovieSong) {
+            correctAnswerText = currentSong.movieTitle!;
+        } else {
+            correctAnswerText = `${currentSong.title} - ${currentSong.artist}`;
+            const parts = choice.split(' - ');
+            submittedTitle = parts[0];
+            submittedArtist = parts[1];
+        }
+    
+        const score = choice === correctAnswerText ? 1 : 0;
+
         const playerAnswer: PlayerAnswer = {
             playerId,
             isMultipleChoice: true,
             timeTaken,
             score,
-            songTitle: choice.split(' - ')[0],
-            artist: choice.split(' - ')[1],
+            songTitle: submittedTitle,
+            artist: submittedArtist,
         };
         socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: playerAnswer } });
     }, [playerId]);
