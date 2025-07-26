@@ -7,7 +7,9 @@ export const SONG_CATALOG: Song[] = [
     artist: 'Michael Jackson',
     year: 1982,
     tags: ['80s', 'Pop', 'Classic'],
-    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/07/23/audio_845c55a666.mp3?filename=pop-summer-tropical-travel-background-_2-21237.mp3',
+    // This URL now points to a file served by our local backend.
+    // Make sure you have a 'billie-jean.mp3' file in the 'public/audio' directory.
+    audioUrl: '/public/audio/billie-jean.mp3',
     distractors: [
       'Like a Virgin - Madonna',
       'Take on Me - a-ha',

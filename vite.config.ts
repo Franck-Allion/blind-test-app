@@ -16,6 +16,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true, // important: rend Vite accessible depuis d'autres appareils
       port: 5173, // tu peux mettre 8080 si 5173 est bloqué
+      proxy: {
+        // Proxy /audio requests to the backend server
+        '/audio': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
     }
   };
 });

@@ -5,7 +5,7 @@ import { socketService } from '../services/socketService';
 import { useGameActions } from '../hooks/useGameActions';
 
 const LobbyView = () => {
-  const { state } = useGame();
+  const { state, unlockAudio } = useGame();
   const { game, playerId, isOrganizer } = state;
   const { startGame } = useGameActions();
 
@@ -29,6 +29,8 @@ const LobbyView = () => {
   
   const handleStartGame = () => {
     if (game && game.players.length > 0) {
+      // Unlock the audio context on the organizer's click. This is crucial for autoplay to work.
+      unlockAudio();
       startGame();
     } else {
       alert('Add at least one player to start the game.');

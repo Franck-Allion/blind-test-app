@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
 import { Trophy, Clock, RotateCw } from 'lucide-react';
+import { socketService } from '../services/socketService';
 
 const GameOverView = () => {
     const navigate = useNavigate();
-    const { state } = useGame();
+    const { state, dispatch } = useGame();
     const { resetGame } = useGameActions();
     const { game } = state;
 
@@ -25,7 +26,11 @@ const GameOverView = () => {
     const winner = finalRanking[0];
 
     const handlePlayAgain = () => {
+        // First, tell the server to delete the game state
         resetGame();
+        // Then, perform client-side cleanup
+        socketService.disconnect();
+        dispatch({ type: 'RESET_STATE' });
         navigate('/setup');
     };
 

@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useReducer, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { Game, GameStatus, Song } from '../types';
 import { socketService } from '../services/socketService';
 import { SONG_CATALOG } from '../services/mockData';
@@ -33,10 +33,8 @@ const gameReducer = (state: GameState, action: Action): GameState => {
     case 'SET_GAME_STATE': {
       const serverGame = action.payload as any; // Acknowledge server payload differs from client Game type
     
-      // Add logging as requested
       console.log('Received game state from server:', JSON.parse(JSON.stringify(serverGame)));
 
-      // Enrich the playlist of IDs from the server into full Song objects for the client
       const enrichedPlaylist = serverGame.playlist
         .map((songId: string) => SONG_CATALOG.find(s => s.id === songId))
         .filter((song: Song | undefined): song is Song => !!song);
@@ -56,16 +54,84 @@ const gameReducer = (state: GameState, action: Action): GameState => {
   }
 };
 
-const GameContext = createContext<{
+interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<Action>;
-}>({
+  unlockAudio: () => void;
+  playSong: (url: string) => void;
+  pauseSong: () => void;
+}
+
+const GameContext = createContext<GameContextType>({
   state: defaultState,
   dispatch: () => null,
+  unlockAudio: () => {},
+  playSong: () => {},
+  pauseSong: () => {},
 });
+
+const serverHostname = window.location.hostname;
+const API_URL = `http://${serverHostname}:8080`;
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(gameReducer, defaultState);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlocked = useRef(false);
+
+  useEffect(() => {
+    // Initialize the audio element only once on the client side
+    if (!audioPlayerRef.current) {
+        audioPlayerRef.current = new Audio();
+    }
+  }, []);
+
+  const unlockAudio = useCallback(() => {
+    if (audioUnlocked.current || !audioPlayerRef.current) return;
+    
+    console.log('Attempting to unlock audio context...');
+    const audio = audioPlayerRef.current;
+    audio.muted = true;
+    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.then(() => {
+        audio.pause();
+        audio.muted = false; // Unmute for actual playback
+        audioUnlocked.current = true;
+        console.log('Audio context unlocked successfully.');
+      }).catch(error => {
+        console.error('Audio context unlock failed. User may need to interact again.', error);
+      });
+    } else {
+        audioUnlocked.current = true;
+    }
+  }, []);
+
+  const playSong = useCallback((url: string) => {
+    if (!audioPlayerRef.current) return;
+    
+    let finalUrl = url;
+    if (url.startsWith('/audio/')) {
+        finalUrl = `${API_URL}${url}`;
+    }
+
+    console.log(`[Audio] Playing song from URL: ${finalUrl}`);
+    audioPlayerRef.current.src = finalUrl;
+    audioPlayerRef.current.currentTime = 0;
+    const playPromise = audioPlayerRef.current.play();
+     if (playPromise !== undefined) {
+        playPromise.catch(error => console.error("Error playing song:", error));
+    }
+  }, []);
+  
+  const pauseSong = useCallback(() => {
+      if (!audioPlayerRef.current) return;
+      console.log("[Audio] Pausing song.");
+      if (!audioPlayerRef.current.paused) {
+        audioPlayerRef.current.pause();
+      }
+  }, []);
 
   useEffect(() => {
     socketService.on('GAME_STATE_UPDATE', (game) => {
@@ -74,7 +140,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     
     socketService.on('PLAYER_ID_SET', (payload) => {
       dispatch({ type: 'SET_PLAYER_ID', payload });
-      // Persist the player's ID for this specific game
       localStorage.setItem(`blindtest-pro-playerId-${payload.gameId}`, payload.playerId);
       if (payload.isOrganizer) {
         localStorage.setItem(`blindtest-pro-isOrganizer-${payload.gameId}`, 'true');
@@ -84,13 +149,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     socketService.on('ERROR', (message) => {
         dispatch({ type: 'SET_ERROR', payload: message });
     });
-
-    // The cleanup function that called socketService.disconnect() has been removed.
-    // This was causing a race condition in React.StrictMode and was the root cause of the connection error.
-    // The socket lifecycle is now managed by the GamePage and user actions.
   }, []);
 
-  return <GameContext.Provider value={{ state, dispatch }}>{children}</GameContext.Provider>;
+  return <GameContext.Provider value={{ state, dispatch, unlockAudio, playSong, pauseSong }}>{children}</GameContext.Provider>;
 };
 
 export const useGame = () => useContext(GameContext);

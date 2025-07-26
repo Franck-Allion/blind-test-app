@@ -1,14 +1,21 @@
+
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
+const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static audio files from the 'public/audio' directory at the root of the project.
+// Any request to /audio/filename.mp3 will be served from there.
+app.use('/audio', express.static(path.join(__dirname, '..', 'public', 'audio')));
+
 
 const server = http.createServer(app);
 // Initialize the WebSocket server without attaching it to the HTTP server directly.
@@ -18,6 +25,7 @@ const wss = new WebSocket.Server({ noServer: true });
 // --- In-memory store for games and clients. ---
 const games = {};
 const wsToPlayerMap = new Map();
+const gameTimers = {}; // Store for server-side round timers
 
 // --- HTTP Endpoints ---
 app.get('/', (req, res) => {
@@ -76,6 +84,20 @@ const broadcast = (gameId, message) => {
         if(gId === gameId && !playerId && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(message));
         }
+    }
+};
+
+const endRoundForGame = (gameId) => {
+    const game = games[gameId];
+    if (game && game.status === 'IN_PROGRESS') {
+        console.log(`[${gameId}] Round ended. Either by time or all players answered.`);
+        // Clear any running timer
+        if (gameTimers[gameId]) {
+            clearTimeout(gameTimers[gameId]);
+            delete gameTimers[gameId];
+        }
+        game.status = 'ROUND_OVER';
+        broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
     }
 };
 
@@ -167,25 +189,43 @@ wss.on('connection', (ws, req) => {
                 case 'START_GAME':
                     game.status = 'IN_PROGRESS';
                     game.currentSongIndex = 0;
-                    console.log(`[${gameId}] Starting game. State being broadcast:`, JSON.stringify(game));
                     broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
+                    
+                    if (gameTimers[gameId]) clearTimeout(gameTimers[gameId]);
+                    gameTimers[gameId] = setTimeout(() => {
+                        console.log(`[${gameId}] Timer expired.`);
+                        endRoundForGame(gameId);
+                    }, game.settings.timeToAnswer * 1000);
+    
+                    console.log(`[${gameId}] Starting game. Server timer set for ${game.settings.timeToAnswer}s.`);
                     break;
                 
                 case 'SUBMIT_ANSWER':
                     const playerIndex = game.players.findIndex(p => p.id === answer.playerId);
-                    if (playerIndex !== -1) {
+                    if (playerIndex !== -1 && game.status === 'IN_PROGRESS') {
+                        // Prevent duplicate answers
+                        if (game.currentRoundAnswers.some(a => a.playerId === answer.playerId)) {
+                            console.log(`[${gameId}] Player ${answer.playerId} tried to answer twice. Ignoring.`);
+                            return; 
+                        }
+                        
                         game.players[playerIndex].score += answer.score;
                         if (answer.score > 0) {
                             game.players[playerIndex].totalTime += answer.timeTaken;
                         }
                         game.currentRoundAnswers.push(answer);
-                        broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
-                    }
-                    break;
+                        
+                        // Check if all players have answered
+                        const allAnswered = game.players.length === game.currentRoundAnswers.length;
 
-                case 'END_ROUND':
-                    game.status = 'ROUND_OVER';
-                    broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
+                        if (allAnswered) {
+                            console.log(`[${gameId}] All players have answered.`);
+                            endRoundForGame(gameId);
+                        } else {
+                            // If not all answered, just broadcast the current state so players see who has answered
+                            broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
+                        }
+                    }
                     break;
 
                 case 'START_NEXT_ROUND':
@@ -194,6 +234,13 @@ wss.on('connection', (ws, req) => {
                         game.currentSongIndex++;
                         game.currentRoundAnswers = [];
                         broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
+                        
+                        if (gameTimers[gameId]) clearTimeout(gameTimers[gameId]);
+                        gameTimers[gameId] = setTimeout(() => {
+                            console.log(`[${gameId}] Timer expired for next round.`);
+                            endRoundForGame(gameId);
+                        }, game.settings.timeToAnswer * 1000);
+                         console.log(`[${gameId}] Starting next round. Server timer set for ${game.settings.timeToAnswer}s.`);
                     }
                     break;
 
@@ -204,6 +251,10 @@ wss.on('connection', (ws, req) => {
                 
                 case 'RESET_GAME':
                     console.log(`[${gameId}] Game reset and deleted.`);
+                    if (gameTimers[gameId]) {
+                        clearTimeout(gameTimers[gameId]);
+                        delete gameTimers[gameId];
+                    }
                     delete games[gameId]; 
                     break;
             }

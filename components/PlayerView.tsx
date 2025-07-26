@@ -1,13 +1,14 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
-import { GameStatus, Song } from '../types';
+import { GameStatus } from '../types';
 import { Volume2, Send, Clock, Loader, HelpCircle } from 'lucide-react';
 import Spinner from './Spinner';
 
 const PlayerView = () => {
-  const { state } = useGame();
-  const { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions, endRound } = useGameActions();
+  const { state, playSong, pauseSong } = useGame();
+  const { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions } = useGameActions();
   const { game, playerId, isOrganizer } = state;
   
   const [userAnswer, setUserAnswer] = useState({ title: '', artist: '' });
@@ -15,8 +16,8 @@ const PlayerView = () => {
   const [timeRemaining, setTimeRemaining] = useState(game?.settings.timeToAnswer ?? 60);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [showMcq, setShowMcq] = useState(false);
+  const [isPreparingSong, setIsPreparingSong] = useState(true);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<number | null>(null);
 
   const currentSong = game ? game.playlist[game.currentSongIndex] : null;
@@ -29,67 +30,61 @@ const PlayerView = () => {
   }, [game?.currentRoundAnswers, playerId]);
   
   const playSongSequence = useCallback(() => {
-    if (!audioRef.current || !game) return;
+    if (!game || !currentSong) return;
     let plays = 0;
     const play = () => {
         if (plays < game.settings.playsPerSong) {
-            audioRef.current!.currentTime = 0;
-            audioRef.current!.play();
+            console.log(`[Audio] Playing song attempt #${plays + 1}`);
+            playSong(currentSong.audioUrl);
             plays++;
             if (plays < game.settings.playsPerSong) {
-                setTimeout(play, 10000 + game.settings.pauseBetweenPlays * 1000); // 10s song + pause
+                setTimeout(play, 10000 + game.settings.pauseBetweenPlays * 1000); // 10s song excerpt + pause
             }
         }
     }
     play();
-  }, [game]);
+  }, [game, currentSong, playSong]);
 
   useEffect(() => {
     if (!currentSong || !game) return;
     
+    // Reset state for the new round
+    setIsPreparingSong(true);
     setUserAnswer({ title: '', artist: '' });
     setMcqOptions([]);
     setShowMcq(false);
     
+    // Prepare MCQ options immediately
     const correctAnswer = `${currentSong.title} - ${currentSong.artist}`;
     const shuffledDistractors = [...currentSong.distractors].sort(() => Math.random() - 0.5);
     const selectedDistractors = shuffledDistractors.slice(0, 3);
     const options = [correctAnswer, ...selectedDistractors];
     const finalShuffledOptions = options.sort(() => Math.random() - 0.5);
     setMcqOptions(finalShuffledOptions);
-    
-    playSongSequence();
-    if (isOrganizer) {
-        runBotActions();
-    }
-    
-    setTimeRemaining(game.settings.timeToAnswer);
-    timerRef.current = window.setInterval(() => {
-        setTimeRemaining(prev => prev > 0 ? prev - 1 : 0);
-    }, 1000);
+
+    // After a 2-second delay, start the song and timer
+    const preparationTimer = setTimeout(() => {
+      setIsPreparingSong(false);
+
+      if (isOrganizer) {
+          playSongSequence();
+          runBotActions();
+      }
+      
+      setTimeRemaining(game.settings.timeToAnswer);
+      timerRef.current = window.setInterval(() => {
+          setTimeRemaining(prev => prev > 0 ? prev - 1 : 0);
+      }, 1000);
+    }, 2000); // 2-second pause
 
     return () => {
+      clearTimeout(preparationTimer);
       if (timerRef.current) clearInterval(timerRef.current);
-      if (audioRef.current) audioRef.current.pause();
-    };
-  }, [currentSong, game, playSongSequence, runBotActions, isOrganizer]);
-
-  useEffect(() => {
-    if (!game) return;
-    const allPlayersAnswered = game.players.length > 0 && game.currentRoundAnswers.length === game.players.length;
-    const timeIsUp = timeRemaining === 0;
-
-    if (game.status === GameStatus.IN_PROGRESS && (allPlayersAnswered || timeIsUp)) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      // Only the organizer should trigger the end of the round
       if (isOrganizer) {
-        setTimeout(() => endRound(), 1000);
+        pauseSong();
       }
-    }
-  }, [timeRemaining, game, isOrganizer, endRound]);
+    };
+  }, [currentSong, game, playSongSequence, runBotActions, isOrganizer, pauseSong]);
 
   const onFreeTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,10 +112,17 @@ const PlayerView = () => {
     console.log('PlayerView waiting for song. Game state:', game, 'Current song:', currentSong);
     return <div className="h-full flex flex-col items-center justify-center bg-slate-800 rounded-lg p-8"><Spinner message="Preparing next song..." /></div>;
   }
+  
+  if (isPreparingSong) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center bg-slate-800 rounded-lg p-8">
+            <Spinner message={`Get ready for song ${game.currentSongIndex + 1}...`} />
+        </div>
+      );
+  }
 
   return (
     <div className="bg-slate-800 p-6 md:p-8 rounded-lg shadow-2xl animate-slide-in-up">
-      <audio ref={audioRef} src={currentSong.audioUrl} preload="auto" />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold">Question {game.currentSongIndex + 1} / {game.playlist.length}</h2>
         <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-full">

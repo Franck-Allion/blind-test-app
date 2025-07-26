@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { evaluateAnswer } from '../services/geminiService';
@@ -99,10 +100,6 @@ export const useGameActions = () => {
         if(game) socketService.send({ type: 'START_GAME', payload: { gameId: game.id } });
     };
 
-    const endRound = () => {
-        if(game) socketService.send({ type: 'END_ROUND', payload: { gameId: game.id } });
-    };
-
     const nextRound = () => {
         if(game) socketService.send({ type: 'START_NEXT_ROUND', payload: { gameId: game.id } });
     };
@@ -113,12 +110,7 @@ export const useGameActions = () => {
 
     const resetGame = () => {
         if(game) socketService.send({ type: 'RESET_GAME', payload: { gameId: game.id } });
-        socketService.disconnect();
-        dispatch({ type: 'RESET_STATE' });
     };
 
-    const { dispatch } = useGame();
-
-
-    return { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions, startGame, endRound, nextRound, finishGame, resetGame };
+    return { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions, startGame, nextRound, finishGame, resetGame };
 };

@@ -30,3 +30,4 @@ dist-ssr
 .vs/blind-test-app/CopilotIndices/17.12.38.29086/SemanticSymbols.db-shm
 .vs/blind-test-app/CopilotIndices/17.12.38.29086/SemanticSymbols.db-wal
 server/package-lock.json
+public/audio/*
