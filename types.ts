@@ -22,7 +22,8 @@ export interface Player {
   name: string;
   isBot: boolean;
   score: number;
-  totalTime: number; // cumulative time in seconds for all correct answers
+  totalTime: number; // cumulative time in seconds for all answers
+  answerCount: number; // total number of answers submitted
   isOrganizer: boolean;
 }
 

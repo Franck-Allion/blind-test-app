@@ -45,6 +45,7 @@ app.post('/api/create-game', (req, res) => {
         isBot: false,
         score: 0,
         totalTime: 0,
+        answerCount: 0,
         isOrganizer: true,
     };
 
@@ -164,6 +165,7 @@ wss.on('connection', (ws, req) => {
                             isBot: false,
                             score: 0,
                             totalTime: 0,
+                            answerCount: 0,
                             isOrganizer: false,
                         };
                         game.players.push(player);
@@ -215,9 +217,10 @@ wss.on('connection', (ws, req) => {
                         }
                         
                         game.players[playerIndex].score += answer.score;
-                        if (answer.score > 0) {
-                            game.players[playerIndex].totalTime += answer.timeTaken;
-                        }
+                        // Accumulate time and count for every answer, regardless of correctness
+                        game.players[playerIndex].totalTime += answer.timeTaken;
+                        game.players[playerIndex].answerCount++;
+                        
                         game.currentRoundAnswers.push(answer);
                         
                         // Check if all players have answered

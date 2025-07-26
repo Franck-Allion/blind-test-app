@@ -15,12 +15,16 @@ const GameOverView = () => {
 
     const { players } = game;
 
-    // Sort players by score descending, then by totalTime ascending for tie-breaking
+    // Sort players by score descending, then by average time ascending for tie-breaking.
     const finalRanking = [...players].sort((a, b) => {
         if (b.score !== a.score) {
             return b.score - a.score;
         }
-        return a.totalTime - b.totalTime;
+        // Tie-breaker: lower average time is better.
+        // If a player hasn't answered, their avg time is Infinity, putting them last in a tie.
+        const avgTimeA = a.answerCount > 0 ? a.totalTime / a.answerCount : Infinity;
+        const avgTimeB = b.answerCount > 0 ? b.totalTime / b.answerCount : Infinity;
+        return avgTimeA - avgTimeB;
     });
 
     const winner = finalRanking[0];
@@ -49,21 +53,27 @@ const GameOverView = () => {
             <div className="bg-slate-800 p-6 rounded-lg">
                 <h3 className="text-2xl font-bold mb-4">Final Leaderboard</h3>
                 <ul className="space-y-3">
-                    {finalRanking.map((player, index) => (
-                        <li key={player.id} className={`flex items-center justify-between p-4 rounded-md ${index === 0 ? 'bg-amber-900/50' : 'bg-slate-700'}`}>
-                            <div className="flex items-center gap-4">
-                                <span className={`font-bold text-xl w-8 text-center ${index === 0 ? 'text-amber-300' : ''}`}>{index + 1}</span>
-                                <span className="font-semibold text-lg">{player.name}</span>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <span className="font-bold text-lg text-amber-300 w-24 text-right">{player.score} pts</span>
-                                <div className="flex items-center gap-2 text-slate-400" title="Total time for correct answers">
-                                    <Clock size={16}/>
-                                    <span>{player.totalTime.toFixed(1)}s</span>
+                    {finalRanking.map((player, index) => {
+                         const averageTime = player.answerCount > 0 
+                            ? (player.totalTime / player.answerCount).toFixed(1) 
+                            : '-.--';
+
+                        return (
+                            <li key={player.id} className={`flex items-center justify-between p-4 rounded-md ${index === 0 ? 'bg-amber-900/50' : 'bg-slate-700'}`}>
+                                <div className="flex items-center gap-4">
+                                    <span className={`font-bold text-xl w-8 text-center ${index === 0 ? 'text-amber-300' : ''}`}>{index + 1}</span>
+                                    <span className="font-semibold text-lg">{player.name}</span>
                                 </div>
-                            </div>
-                        </li>
-                    ))}
+                                <div className="flex items-center gap-6">
+                                    <span className="font-bold text-lg text-amber-300 w-24 text-right">{player.score} pts</span>
+                                    <div className="flex items-center gap-2 text-slate-400 w-20" title="Average time to answer">
+                                        <Clock size={16}/>
+                                        <span>{averageTime}s</span>
+                                    </div>
+                                </div>
+                            </li>
+                        );
+                    })}
                 </ul>
             </div>
 
