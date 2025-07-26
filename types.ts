@@ -14,10 +14,11 @@ export interface GameSettings {
   timeToAnswer: number; // in seconds
   playsPerSong: number;
   pauseBetweenPlays: number; // in seconds
+  showScoresAfterRound: boolean; // if true, all players see scores. If false, only organizer.
 }
 
 export interface Player {
-  id: string;
+  id:string;
   name: string;
   isBot: boolean;
   score: number;

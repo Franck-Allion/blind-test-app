@@ -12,6 +12,7 @@ const RoundOverView = () => {
 
     const currentSong = game.playlist[game.currentSongIndex];
     const isLastSong = game.currentSongIndex === game.playlist.length - 1;
+    const showScores = game.settings.showScoresAfterRound || isOrganizer;
 
     const handleNext = () => {
         if (isLastSong) {
@@ -43,17 +44,20 @@ const RoundOverView = () => {
                 </p>
             </div>
 
-            <div className="bg-slate-800 p-6 rounded-lg mb-8">
-                <h3 className="text-2xl font-bold mb-4">Current Standings</h3>
-                <ul className="space-y-2 text-left">
-                    {sortedPlayers.map((player, index) => (
-                        <li key={player.id} className="flex items-center justify-between bg-slate-700 p-3 rounded-md">
-                            <span className="font-semibold">{index + 1}. {player.name}</span>
-                            <span className="font-bold text-lg text-amber-300">{player.score} pts</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+            {showScores && (
+                <div className="bg-slate-800 p-6 rounded-lg mb-8 animate-fade-in">
+                    <h3 className="text-2xl font-bold mb-4">Current Standings</h3>
+                    <ul className="space-y-2 text-left">
+                        {sortedPlayers.map((player, index) => (
+                            <li key={player.id} className="flex items-center justify-between bg-slate-700 p-3 rounded-md">
+                                <span className="font-semibold">{index + 1}. {player.name}</span>
+                                <span className="font-bold text-lg text-amber-300">{player.score} pts</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
 
             {isOrganizer && (
                  <button

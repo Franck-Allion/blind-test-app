@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
 import { SONG_CATALOG } from '../services/mockData';
 import { GameSettings } from '../types';
-import { SlidersHorizontal, ListMusic, Check, ArrowRight } from 'lucide-react';
+import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { socketService } from '../services/socketService';
 
 const SetupPage = () => {
@@ -15,6 +15,7 @@ const SetupPage = () => {
     timeToAnswer: 60,
     playsPerSong: 2,
     pauseBetweenPlays: 3,
+    showScoresAfterRound: false, // Default to No
   });
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -99,9 +100,9 @@ const SetupPage = () => {
       {/* Settings */}
       <div className="bg-slate-800 p-6 rounded-lg shadow-xl">
         <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><SlidersHorizontal className="text-indigo-400"/> Game Rules</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
-            <label htmlFor="timeToAnswer" className="block text-sm font-medium text-slate-300 mb-1">Time to Answer (seconds)</label>
+            <label htmlFor="timeToAnswer" className="block text-sm font-medium text-slate-300 mb-1">Time to Answer (sec)</label>
             <input type="number" name="timeToAnswer" value={settings.timeToAnswer} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
           </div>
           <div>
@@ -109,8 +110,27 @@ const SetupPage = () => {
             <input type="number" name="playsPerSong" value={settings.playsPerSong} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
           </div>
           <div>
-            <label htmlFor="pauseBetweenPlays" className="block text-sm font-medium text-slate-300 mb-1">Pause Between Plays (seconds)</label>
+            <label htmlFor="pauseBetweenPlays" className="block text-sm font-medium text-slate-300 mb-1">Pause Between Plays (sec)</label>
             <input type="number" name="pauseBetweenPlays" value={settings.pauseBetweenPlays} onChange={handleSettingChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Show Scores to Players?</label>
+             <div className="flex rounded-md shadow-sm h-10">
+                <button
+                  type="button"
+                  onClick={() => setSettings(s => ({...s, showScoresAfterRound: true}))}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${settings.showScoresAfterRound ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600' } border border-slate-600 rounded-l-md focus:z-10 focus:ring-2 focus:ring-indigo-500`}
+                >
+                  <Eye size={16}/> Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettings(s => ({...s, showScoresAfterRound: false}))}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${!settings.showScoresAfterRound ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600' } border border-y border-r border-slate-600 rounded-r-md focus:z-10 focus:ring-2 focus:ring-indigo-500`}
+                >
+                  <EyeOff size={16}/> No
+                </button>
+              </div>
           </div>
         </div>
       </div>
