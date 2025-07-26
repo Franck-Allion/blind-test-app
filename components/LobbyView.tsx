@@ -3,6 +3,7 @@ import { useGame } from '../contexts/GameContext';
 import { Play, UserPlus, Link as LinkIcon, Copy, Users, UserCheck } from 'lucide-react';
 import { socketService } from '../services/socketService';
 import { useGameActions } from '../hooks/useGameActions';
+import { QRCodeSVG } from 'https://esm.sh/qrcode.react@^3.1.0?deps=react@^19.1.0';
 
 const LobbyView = () => {
   const { state, unlockAudio } = useGame();
@@ -87,21 +88,33 @@ const LobbyView = () => {
     <>
       <h1 className="text-4xl font-bold mb-2">Game Lobby</h1>
       <p className="text-slate-400 mb-6 max-w-2xl mx-auto">
-        You are the Organizer! Share the link below with other players.
-        As they join, the list of players will update here in real-time.
+        You are the Organizer! Share the link with other players. They can join by opening the link or scanning the QR code below.
       </p>
       
-      <div className="bg-slate-800 p-4 rounded-lg mb-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <div className="flex items-center gap-2">
-            <LinkIcon className="text-indigo-400" />
-            <span className="font-semibold">Invite Link:</span>
+      <div className="bg-slate-800 p-6 rounded-lg mb-6 flex flex-col md:flex-row items-center justify-center gap-6">
+        <div className="flex-grow w-full text-left">
+            <div className="flex items-center gap-2 mb-2">
+                <LinkIcon className="text-indigo-400" />
+                <span className="font-semibold">Invite Link:</span>
+            </div>
+            <div className="flex gap-2">
+                <input type="text" readOnly value={gameUrl} className="w-full flex-grow bg-slate-700 border-none p-2 rounded-md" />
+                <button onClick={copyToClipboard} className="shrink-0 p-2 px-4 bg-indigo-600 hover:bg-indigo-500 rounded-md transition-colors flex items-center justify-center gap-2">
+                    {copied ? <><UserCheck size={20}/> Copied!</> : <><Copy size={20}/> Copy</>}
+                </button>
+            </div>
         </div>
-        <input type="text" readOnly value={gameUrl} className="w-full sm:w-auto flex-grow bg-slate-700 border-none p-2 rounded-md" />
-        <button onClick={copyToClipboard} className="w-full sm:w-auto p-2 bg-indigo-600 hover:bg-indigo-500 rounded-md transition-colors flex items-center justify-center gap-2">
-            {copied ? <><UserCheck size={20}/> Copied!</> : <><Copy size={20}/> Copy Link</>}
-        </button>
+
+        <div className="w-full md:w-px h-px md:h-24 bg-slate-600"></div>
+        
+        <div className="text-center">
+            <span className="font-semibold mb-2 block">Or Scan Code</span>
+            <div className="bg-white p-2 rounded-lg inline-block shadow-lg">
+                <QRCodeSVG value={gameUrl} size={128} bgColor="#FFFFFF" fgColor="#0F172A" />
+            </div>
+        </div>
       </div>
-      
+
       <div className="bg-slate-800 p-6 rounded-lg mb-6">
         <h2 className="text-2xl font-semibold mb-4">Players ({game?.players.length})</h2>
         <ul className="space-y-2 text-left max-h-60 overflow-y-auto">
