@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
@@ -48,6 +49,10 @@ const PlayerView = () => {
     setMcqOptions(finalShuffledOptions);
 
     // --- New Playback Logic ---
+    const { audioUrls } = currentSong;
+    const randomUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
+    console.log(`[PlayerView] Randomly selected audio URL for this round: ${randomUrl}`);
+
     playsCounterRef.current = 0;
     const playLoop = () => {
       if (!isOrganizer || playsCounterRef.current >= game.settings.playsPerSong) {
@@ -57,7 +62,7 @@ const PlayerView = () => {
       playsCounterRef.current++;
       console.log(`[Audio] Playing song attempt #${playsCounterRef.current}`);
 
-      playSong(currentSong.audioUrl, () => { // onEnded callback
+      playSong(randomUrl, () => { // onEnded callback
         if (playsCounterRef.current < game.settings.playsPerSong) {
           console.log(`[Audio] Song ended. Pausing for ${game.settings.pauseBetweenPlays} seconds.`);
           pauseTimerRef.current = window.setTimeout(playLoop, game.settings.pauseBetweenPlays * 1000);

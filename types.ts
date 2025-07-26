@@ -6,7 +6,7 @@ export interface Song {
   artist: string;
   year: number;
   tags: string[];
-  audioUrl: string;
+  audioUrls: string[];
   distractors: string[];
 }
 
