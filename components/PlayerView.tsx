@@ -48,30 +48,26 @@ const PlayerView = () => {
     const finalShuffledOptions = options.sort(() => Math.random() - 0.5);
     setMcqOptions(finalShuffledOptions);
 
-    // --- New Playback Logic ---
+    // --- Playback Logic ---
     const { audioUrls } = currentSong;
     const randomUrl = audioUrls[Math.floor(Math.random() * audioUrls.length)];
-    console.log(`[PlayerView] Randomly selected audio URL for this round: ${randomUrl}`);
-
     playsCounterRef.current = 0;
+    
     const playLoop = () => {
-      if (!isOrganizer || playsCounterRef.current >= game.settings.playsPerSong) {
-        return;
-      }
+      if (!isOrganizer || playsCounterRef.current >= game.settings.playsPerSong) return;
       
       playsCounterRef.current++;
       console.log(`[Audio] Playing song attempt #${playsCounterRef.current}`);
 
       playSong(randomUrl, () => { // onEnded callback
         if (playsCounterRef.current < game.settings.playsPerSong) {
-          console.log(`[Audio] Song ended. Pausing for ${game.settings.pauseBetweenPlays} seconds.`);
+            console.log(`[Audio] Song ended. Pausing for ${game.settings.pauseBetweenPlays} seconds.`);
           pauseTimerRef.current = window.setTimeout(playLoop, game.settings.pauseBetweenPlays * 1000);
         } else {
           console.log('[Audio] Final play finished.');
         }
       });
     };
-    // --- End New Playback Logic ---
 
     // After a 2-second delay, start the song and timer
     const preparationTimer = setTimeout(() => {
@@ -82,16 +78,34 @@ const PlayerView = () => {
           runBotActions();
       }
       
+      // --- ROBUST TIMER LOGIC ---
       setTimeRemaining(game.settings.timeToAnswer);
-      timerRef.current = window.setInterval(() => {
-          setTimeRemaining(prev => prev > 0 ? prev - 1 : 0);
-      }, 1000);
+      const roundEndTime = performance.now() + game.settings.timeToAnswer * 1000;
+
+      const timerLoop = () => {
+        const now = performance.now();
+        const timeLeftMs = roundEndTime - now;
+
+        if (timeLeftMs <= 0) {
+          setTimeRemaining(0);
+          return; // Stop the loop
+        }
+
+        const secondsLeft = Math.ceil(timeLeftMs / 1000);
+        // Only update state if the displayed second value changes to avoid re-rendering every frame
+        setTimeRemaining(prev => (prev !== secondsLeft ? secondsLeft : prev));
+
+        timerRef.current = requestAnimationFrame(timerLoop);
+      };
+      timerRef.current = requestAnimationFrame(timerLoop);
+      // --- END OF ROBUST TIMER LOGIC ---
+
     }, 2000); // 2-second pause
 
     return () => {
       clearTimeout(preparationTimer);
       if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
       if (isOrganizer) {
         pauseSong();
       }
@@ -121,7 +135,7 @@ const PlayerView = () => {
   const timerColor = timeRemaining > 20 ? 'text-emerald-400' : timeRemaining > 10 ? 'text-amber-400' : 'text-red-500';
 
   if (!game || !currentSong) {
-    console.log('PlayerView waiting for song. Game state:', game, 'Current song:', currentSong);
+        console.log('PlayerView waiting for song. Game state:', game, 'Current song:', currentSong);
     return <div className="h-full flex flex-col items-center justify-center bg-slate-800 rounded-lg p-8"><Spinner message="Preparing next song..." /></div>;
   }
   

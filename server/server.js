@@ -26,6 +26,7 @@ const wss = new WebSocket.Server({ noServer: true });
 const games = {};
 const wsToPlayerMap = new Map();
 const gameTimers = {}; // Store for server-side round timers
+const CLIENT_PREPARATION_TIME_MS = 2000; // Corresponds to the client's "Get Ready" delay
 
 // --- HTTP Endpoints ---
 app.get('/', (req, res) => {
@@ -186,19 +187,23 @@ wss.on('connection', (ws, req) => {
                     break;
                 }
 
-                case 'START_GAME':
+                case 'START_GAME': {
                     game.status = 'IN_PROGRESS';
                     game.currentSongIndex = 0;
                     broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
                     
+                    // Account for client-side "Get Ready..." delay
+                    const roundDuration = (game.settings.timeToAnswer * 1000) + CLIENT_PREPARATION_TIME_MS;
+
                     if (gameTimers[gameId]) clearTimeout(gameTimers[gameId]);
                     gameTimers[gameId] = setTimeout(() => {
                         console.log(`[${gameId}] Timer expired.`);
                         endRoundForGame(gameId);
-                    }, game.settings.timeToAnswer * 1000);
+                    }, roundDuration);
     
-                    console.log(`[${gameId}] Starting game. Server timer set for ${game.settings.timeToAnswer}s.`);
+                    console.log(`[${gameId}] Starting game. Server timer set for ${game.settings.timeToAnswer}s + ${CLIENT_PREPARATION_TIME_MS / 1000}s preparation.`);
                     break;
+                }
                 
                 case 'SUBMIT_ANSWER':
                     const playerIndex = game.players.findIndex(p => p.id === answer.playerId);
@@ -235,12 +240,15 @@ wss.on('connection', (ws, req) => {
                         game.currentRoundAnswers = [];
                         broadcast(gameId, { type: 'GAME_STATE_UPDATE', payload: game });
                         
+                        // Account for client-side "Get Ready..." delay
+                        const roundDuration = (game.settings.timeToAnswer * 1000) + CLIENT_PREPARATION_TIME_MS;
+
                         if (gameTimers[gameId]) clearTimeout(gameTimers[gameId]);
                         gameTimers[gameId] = setTimeout(() => {
                             console.log(`[${gameId}] Timer expired for next round.`);
                             endRoundForGame(gameId);
-                        }, game.settings.timeToAnswer * 1000);
-                         console.log(`[${gameId}] Starting next round. Server timer set for ${game.settings.timeToAnswer}s.`);
+                        }, roundDuration);
+                         console.log(`[${gameId}] Starting next round. Server timer set for ${game.settings.timeToAnswer}s + ${CLIENT_PREPARATION_TIME_MS / 1000}s preparation.`);
                     }
                     break;
 
