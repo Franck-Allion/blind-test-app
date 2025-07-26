@@ -1,19 +1,28 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { evaluateAnswer } from '../services/geminiService';
-import { PlayerAnswer, Song } from '../types';
+import { PlayerAnswer, Game } from '../types';
 import { socketService } from '../services/socketService';
 
 export const useGameActions = () => {
     const { state } = useGame();
-    const { game, playerId } = state;
+    const { playerId } = state;
+    
+    // By storing the game state in a ref, we ensure that the action functions
+    // themselves are stable (i.e., they don't get recreated on every state change),
+    // which prevents unnecessary re-renders and effect re-runs in consuming components.
+    const gameRef = useRef<Game | null>(state.game);
+    useEffect(() => {
+        gameRef.current = state.game;
+    }, [state.game]);
 
     const handlePlayerAnswer = useCallback(async (
         answer: { title: string; artist: string },
         timeTaken: number
     ) => {
-        if (!game || !playerId) return;
+        const game = gameRef.current;
+        if (!game || !playerId || game.status !== 'IN_PROGRESS') return;
 
         const currentSong = game.playlist[game.currentSongIndex];
         if (!currentSong) return;
@@ -39,10 +48,12 @@ export const useGameActions = () => {
         socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: playerAnswer } });
         socketService.send({type: 'SET_LOADING', payload: false});
 
-    }, [game, playerId]);
+    }, [playerId]);
     
     const handleMultipleChoiceAnswer = useCallback((choice: string, timeTaken: number) => {
-        if (!game || !playerId) return;
+        const game = gameRef.current;
+        if (!game || !playerId || game.status !== 'IN_PROGRESS') return;
+
         const currentSong = game.playlist[game.currentSongIndex];
         if (!currentSong) return;
 
@@ -58,15 +69,22 @@ export const useGameActions = () => {
             artist: choice.split(' - ')[1],
         };
         socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: playerAnswer } });
-    }, [game, playerId]);
+    }, [playerId]);
 
     const runBotActions = useCallback(() => {
+        const game = gameRef.current;
         if (!game) return;
+
         const bots = game.players.filter(p => p.isBot);
         const currentSong = game.playlist[game.currentSongIndex];
         if (!currentSong) return;
 
         bots.forEach(bot => {
+            // Prevent bot from answering twice in the same round
+            if (game.currentRoundAnswers.some(a => a.playerId === bot.id)) {
+                return;
+            }
+
             const delay = Math.random() * (game.settings.timeToAnswer / 2 * 1000) + 3000;
             setTimeout(() => {
                 const doesBotKnow = Math.random() > 0.4;
@@ -74,7 +92,6 @@ export const useGameActions = () => {
 
                 const timeTaken = delay / 1000;
                 
-                // Bots now only do free text for simplicity
                 const titleCorrect = Math.random() > 0.2;
                 const artistCorrect = Math.random() > 0.4;
                 let score = 0;
@@ -89,28 +106,35 @@ export const useGameActions = () => {
                     songTitle: titleCorrect ? currentSong.title : "Some other song",
                     artist: artistCorrect ? currentSong.artist : "Some other artist"
                 };
-                socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: botAnswer } });
 
+                // Re-check the game state inside the timeout to ensure the round is still active
+                const currentGame = gameRef.current;
+                 if (currentGame && currentGame.id === game.id && currentGame.status === 'IN_PROGRESS' && currentGame.currentSongIndex === game.currentSongIndex) {
+                    socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: botAnswer } });
+                 }
             }, delay);
         });
-
-    }, [game]);
+    }, []);
     
-    const startGame = () => {
+    const startGame = useCallback(() => {
+        const game = gameRef.current;
         if(game) socketService.send({ type: 'START_GAME', payload: { gameId: game.id } });
-    };
+    }, []);
 
-    const nextRound = () => {
+    const nextRound = useCallback(() => {
+        const game = gameRef.current;
         if(game) socketService.send({ type: 'START_NEXT_ROUND', payload: { gameId: game.id } });
-    };
+    }, []);
 
-    const finishGame = () => {
+    const finishGame = useCallback(() => {
+        const game = gameRef.current;
         if(game) socketService.send({ type: 'FINISH_GAME', payload: { gameId: game.id } });
-    };
+    }, []);
 
-    const resetGame = () => {
+    const resetGame = useCallback(() => {
+        const game = gameRef.current;
         if(game) socketService.send({ type: 'RESET_GAME', payload: { gameId: game.id } });
-    };
+    }, []);
 
     return { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions, startGame, nextRound, finishGame, resetGame };
 };

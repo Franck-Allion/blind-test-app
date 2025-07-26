@@ -54,7 +54,8 @@ const PlayerView = () => {
     playsCounterRef.current = 0;
     
     const playLoop = () => {
-      if (!isOrganizer || playsCounterRef.current >= game.settings.playsPerSong) return;
+      // Re-read settings from game object in case they could change, though they shouldn't mid-game.
+      if (!isOrganizer || !game || playsCounterRef.current >= game.settings.playsPerSong) return;
       
       playsCounterRef.current++;
       console.log(`[Audio] Playing song attempt #${playsCounterRef.current}`);
@@ -110,7 +111,7 @@ const PlayerView = () => {
         pauseSong();
       }
     };
-  }, [currentSong, game, isOrganizer, runBotActions, playSong, pauseSong]);
+  }, [currentSong, isOrganizer, runBotActions, playSong, pauseSong]);
 
   const onFreeTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
