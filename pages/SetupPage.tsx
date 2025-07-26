@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
 import { SONG_CATALOG } from '../services/mockData';
 import { GameSettings } from '../types';
-import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff, Shuffle, Edit } from 'lucide-react';
+import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff, Shuffle, Edit, Star } from 'lucide-react';
 import { socketService } from '../services/socketService';
 
 const SetupPage = () => {
@@ -204,10 +204,22 @@ const SetupPage = () => {
                                 <p className="font-bold text-lg">{song.title}</p>
                                 <p className="text-sm text-slate-400">{song.artist} ({song.year})</p>
                             </div>
-                            {selectedSongs.has(song.id) && <div className="bg-emerald-500 rounded-full p-1"><Check size={16} className="text-white"/></div>}
+                            {selectedSongs.has(song.id) && <div className="bg-emerald-500 rounded-full p-1 shrink-0"><Check size={16} className="text-white"/></div>}
                         </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {song.tags.map(tag => <span key={tag} className="text-xs bg-slate-600 px-2 py-0.5 rounded-full">{tag}</span>)}
+                      <div className="mt-2 flex justify-between items-center">
+                        <div className="flex flex-wrap gap-1 mr-2">
+                            {song.tags.map(tag => <span key={tag} className="text-xs bg-slate-600 px-2 py-0.5 rounded-full">{tag}</span>)}
+                        </div>
+                        <div className="flex items-center shrink-0" title={`Difficulty: ${song.difficulty}/5`}>
+                            {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                key={i}
+                                size={14}
+                                className={i < song.difficulty ? 'text-amber-400' : 'text-slate-600'}
+                                fill={i < song.difficulty ? 'currentColor' : 'none'}
+                                />
+                            ))}
+                        </div>
                       </div>
                     </button>
                   ))}

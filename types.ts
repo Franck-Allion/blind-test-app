@@ -8,6 +8,7 @@ export interface Song {
   tags: string[];
   audioUrls: string[];
   distractors: string[];
+  difficulty: number; // 1 (easy) to 5 (very difficult)
 }
 
 export interface GameSettings {

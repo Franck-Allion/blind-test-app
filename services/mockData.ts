@@ -6,6 +6,7 @@ export const SONG_CATALOG: Song[] = [
     title: 'Billie Jean',
     artist: 'Michael Jackson',
     year: 1982,
+    difficulty: 2,
     // 50s, 60s, 70s, 80s, 90s, 2000s, 2010s, 2020s
     // Pop, Rock, Hip-Hop, Rap, R&B, Country, Jazz, Classical, Anime, K-Pop, Electro, Soul, Funk, Disco, House, Reggae
     // Metal, Punk, Grunge
