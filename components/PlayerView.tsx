@@ -142,7 +142,7 @@ const PlayerView = () => {
   if (isPreparingSong) {
       return (
         <div className="h-full flex flex-col items-center justify-center bg-slate-800 rounded-lg p-8">
-            <Spinner message={`Get ready for song ${game.currentSongIndex + 1}...`} />
+            <Spinner message={`Get ready for the next song...`} />
         </div>
       );
   }
@@ -188,7 +188,7 @@ const PlayerView = () => {
 
                 <button onClick={handleShowMcqClick} className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 font-bold p-3 rounded-md transition-colors">
                     <HelpCircle size={18}/>
-                    Show Multiple Choice (max 1 point)
+                    Show Multiple Choice (1 point)
                 </button>
               </>
             ) : (
