@@ -9,7 +9,7 @@ export const SONG_CATALOG: Song[] = [
     tags: ['80s', 'Pop', 'Classic'],
     // This URL now points to a file served by our local backend.
     // Make sure you have a 'billie-jean.mp3' file in the 'public/audio' directory.
-    audioUrl: '/public/audio/billie-jean.mp3',
+    audioUrl: '/public/audio/billie-jean-01.mp3',
     distractors: [
       'Like a Virgin - Madonna',
       'Take on Me - a-ha',

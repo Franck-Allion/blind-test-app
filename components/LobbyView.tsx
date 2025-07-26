@@ -27,11 +27,17 @@ const LobbyView = () => {
     }
   };
   
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (game && game.players.length > 0) {
-      // Unlock the audio context on the organizer's click. This is crucial for autoplay to work.
-      unlockAudio();
-      startGame();
+      try {
+        // Unlock the audio context on the organizer's click. We await this to prevent race conditions.
+        await unlockAudio();
+        startGame();
+      } catch (error) {
+        // Log the error, but still start the game. Audio might not work on some browsers.
+        console.error("Failed to unlock audio context. The game will start, but playback may be blocked by the browser.", error);
+        startGame();
+      }
     } else {
       alert('Add at least one player to start the game.');
     }

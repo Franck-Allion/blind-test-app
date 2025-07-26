@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
-import { GameStatus } from '../types';
 import { Volume2, Send, Clock, Loader, HelpCircle } from 'lucide-react';
 import Spinner from './Spinner';
 
@@ -19,6 +18,8 @@ const PlayerView = () => {
   const [isPreparingSong, setIsPreparingSong] = useState(true);
 
   const timerRef = useRef<number | null>(null);
+  const pauseTimerRef = useRef<number | null>(null);
+  const playsCounterRef = useRef(0);
 
   const currentSong = game ? game.playlist[game.currentSongIndex] : null;
 
@@ -28,22 +29,6 @@ const PlayerView = () => {
         setHasAnswered(playerHasAnsweredThisRound);
     }
   }, [game?.currentRoundAnswers, playerId]);
-  
-  const playSongSequence = useCallback(() => {
-    if (!game || !currentSong) return;
-    let plays = 0;
-    const play = () => {
-        if (plays < game.settings.playsPerSong) {
-            console.log(`[Audio] Playing song attempt #${plays + 1}`);
-            playSong(currentSong.audioUrl);
-            plays++;
-            if (plays < game.settings.playsPerSong) {
-                setTimeout(play, 10000 + game.settings.pauseBetweenPlays * 1000); // 10s song excerpt + pause
-            }
-        }
-    }
-    play();
-  }, [game, currentSong, playSong]);
 
   useEffect(() => {
     if (!currentSong || !game) return;
@@ -62,12 +47,33 @@ const PlayerView = () => {
     const finalShuffledOptions = options.sort(() => Math.random() - 0.5);
     setMcqOptions(finalShuffledOptions);
 
+    // --- New Playback Logic ---
+    playsCounterRef.current = 0;
+    const playLoop = () => {
+      if (!isOrganizer || playsCounterRef.current >= game.settings.playsPerSong) {
+        return;
+      }
+      
+      playsCounterRef.current++;
+      console.log(`[Audio] Playing song attempt #${playsCounterRef.current}`);
+
+      playSong(currentSong.audioUrl, () => { // onEnded callback
+        if (playsCounterRef.current < game.settings.playsPerSong) {
+          console.log(`[Audio] Song ended. Pausing for ${game.settings.pauseBetweenPlays} seconds.`);
+          pauseTimerRef.current = window.setTimeout(playLoop, game.settings.pauseBetweenPlays * 1000);
+        } else {
+          console.log('[Audio] Final play finished.');
+        }
+      });
+    };
+    // --- End New Playback Logic ---
+
     // After a 2-second delay, start the song and timer
     const preparationTimer = setTimeout(() => {
       setIsPreparingSong(false);
 
       if (isOrganizer) {
-          playSongSequence();
+          playLoop(); // Start the playback loop
           runBotActions();
       }
       
@@ -79,12 +85,13 @@ const PlayerView = () => {
 
     return () => {
       clearTimeout(preparationTimer);
+      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
       if (isOrganizer) {
         pauseSong();
       }
     };
-  }, [currentSong, game, playSongSequence, runBotActions, isOrganizer, pauseSong]);
+  }, [currentSong, game, isOrganizer, runBotActions, playSong, pauseSong]);
 
   const onFreeTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();

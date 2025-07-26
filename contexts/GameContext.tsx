@@ -57,15 +57,15 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<Action>;
-  unlockAudio: () => void;
-  playSong: (url: string) => void;
+  unlockAudio: () => Promise<void>;
+  playSong: (url: string, onEnded?: () => void) => void;
   pauseSong: () => void;
 }
 
 const GameContext = createContext<GameContextType>({
   state: defaultState,
   dispatch: () => null,
-  unlockAudio: () => {},
+  unlockAudio: () => Promise.resolve(),
   playSong: () => {},
   pauseSong: () => {},
 });
@@ -85,8 +85,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const unlockAudio = useCallback(() => {
-    if (audioUnlocked.current || !audioPlayerRef.current) return;
+  const unlockAudio = useCallback((): Promise<void> => {
+    if (audioUnlocked.current || !audioPlayerRef.current) {
+        return Promise.resolve();
+    }
     
     console.log('Attempting to unlock audio context...');
     const audio = audioPlayerRef.current;
@@ -94,22 +96,46 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
     
     const promise = audio.play();
+
     if (promise !== undefined) {
-      promise.then(() => {
-        audio.pause();
-        audio.muted = false; // Unmute for actual playback
+      return promise.then(() => {
+        // Once the silent audio plays, pause it immediately.
+        // This successfully unlocks the context and prepares the element for the next song.
+        audio.pause(); 
+        audio.currentTime = 0;
+        audio.muted = false;
         audioUnlocked.current = true;
         console.log('Audio context unlocked successfully.');
       }).catch(error => {
         console.error('Audio context unlock failed. User may need to interact again.', error);
+        // Reset mute state even on failure.
+        audio.muted = false;
+        // Re-throw to allow the caller to handle the failure.
+        throw error;
       });
-    } else {
-        audioUnlocked.current = true;
     }
+    
+    // Fallback for older browsers
+    audio.muted = false;
+    audioUnlocked.current = true;
+    return Promise.resolve();
   }, []);
 
-  const playSong = useCallback((url: string) => {
+  const playSong = useCallback((url: string, onEnded?: () => void) => {
     if (!audioPlayerRef.current) return;
+    const audio = audioPlayerRef.current;
+
+    // Always clear the previous handler to prevent leaks or old callbacks firing.
+    audio.onended = null;
+    if (onEnded) {
+        // Assign the new handler. It will fire once when the song ends.
+        audio.onended = () => {
+            console.log('[Audio] Song finished playing.');
+            onEnded();
+            // Clear the handler after it fires to make it a one-shot callback.
+            audio.onended = null;
+        };
+    }
     
     let finalUrl = url;
     if (url.startsWith('/audio/')) {
@@ -117,9 +143,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
 
     console.log(`[Audio] Playing song from URL: ${finalUrl}`);
-    audioPlayerRef.current.src = finalUrl;
-    audioPlayerRef.current.currentTime = 0;
-    const playPromise = audioPlayerRef.current.play();
+    audio.src = finalUrl;
+    audio.currentTime = 0;
+    const playPromise = audio.play();
      if (playPromise !== undefined) {
         playPromise.catch(error => console.error("Error playing song:", error));
     }
