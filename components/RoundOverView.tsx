@@ -1,11 +1,13 @@
+
+
 import React from 'react';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
-import { ArrowRight, Music } from 'lucide-react';
+import { ArrowRight, Music, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 const RoundOverView = () => {
     const { state } = useGame();
-    const { game, isOrganizer } = state;
+    const { game, isOrganizer, playerId } = state;
     const { nextRound, finishGame } = useGameActions();
 
     if (!game) return null;
@@ -35,6 +37,77 @@ const RoundOverView = () => {
     
     const isMovieSong = currentSong.tags.includes('Movie') && currentSong.movieTitle;
 
+    const renderPlayerFeedback = () => {
+        if (isOrganizer) return null;
+
+        const playerAnswer = game.currentRoundAnswers.find(a => a.playerId === playerId);
+
+        if (!playerAnswer) {
+            return (
+                <div className="bg-slate-800 p-6 rounded-lg mb-6 animate-fade-in">
+                    <h3 className="text-xl font-semibold mb-2 text-center">Your Result</h3>
+                    <p className="text-slate-400 text-center">You did not submit an answer for this round.</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="bg-slate-800 p-6 rounded-lg mb-6 animate-fade-in">
+                <h3 className="text-xl font-semibold mb-4 text-center">Your Result</h3>
+
+                {playerAnswer.isMultipleChoice ? (
+                    <div className="flex flex-col items-center gap-2">
+                        <p className="text-lg text-center">
+                            <span className="text-slate-400">You chose: </span>{playerAnswer.songTitle || 'No selection'}
+                        </p>
+                        {playerAnswer.score > 0 ? (
+                            <div className="flex items-center gap-2 font-bold text-xl text-emerald-400"><CheckCircle2 /><span>Correct!</span></div>
+                        ) : (
+                            <div className="flex items-center gap-2 font-bold text-xl text-red-500"><XCircle /><span>Incorrect</span></div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {isMovieSong ? (
+                            <div className="flex justify-between items-center bg-slate-700 p-3 rounded-md">
+                                <p className="truncate">
+                                    <span className="text-sm text-slate-400">Movie: </span>
+                                    <span className="font-semibold text-white" title={playerAnswer.songTitle || ''}>{playerAnswer.songTitle || '(not provided)'}</span>
+                                </p>
+                                {playerAnswer.titleMatch === true && <CheckCircle2 size={20} className="text-emerald-400 shrink-0 ml-2" />}
+                                {playerAnswer.titleMatch === false && <XCircle size={20} className="text-red-500 shrink-0 ml-2" />}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex justify-between items-center bg-slate-700 p-3 rounded-md">
+                                    <p className="truncate">
+                                        <span className="text-sm text-slate-400">Title: </span>
+                                        <span className="font-semibold text-white" title={playerAnswer.songTitle || ''}>{playerAnswer.songTitle || '(not provided)'}</span>
+                                    </p>
+                                    {playerAnswer.titleMatch === true && <CheckCircle2 size={20} className="text-emerald-400 shrink-0 ml-2" />}
+                                    {playerAnswer.titleMatch === false && <XCircle size={20} className="text-red-500 shrink-0 ml-2" />}
+                                </div>
+                                <div className="flex justify-between items-center bg-slate-700 p-3 rounded-md">
+                                    <p className="truncate">
+                                        <span className="text-sm text-slate-400">Artist: </span>
+                                        <span className="font-semibold text-white" title={playerAnswer.artist || ''}>{playerAnswer.artist || '(not provided)'}</span>
+                                    </p>
+                                    {playerAnswer.artistMatch === true && <CheckCircle2 size={20} className="text-emerald-400 shrink-0 ml-2" />}
+                                    {playerAnswer.artistMatch === false && <XCircle size={20} className="text-red-500 shrink-0 ml-2" />}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+                
+                <p className="text-center font-bold text-lg mt-4">
+                    Points Awarded: <span className="text-amber-400">{playerAnswer.score}</span>
+                </p>
+            </div>
+        );
+    };
+
+
     return (
         <div className="max-w-4xl mx-auto text-center animate-slide-in-up">
             <h1 className="text-4xl font-bold mb-4">Round Over!</h1>
@@ -54,6 +127,8 @@ const RoundOverView = () => {
                   </p>
                 )}
             </div>
+
+            {renderPlayerFeedback()}
 
             {showScores && (
                 <div className="bg-slate-800 p-6 rounded-lg mb-8 animate-fade-in">

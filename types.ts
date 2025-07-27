@@ -36,6 +36,8 @@ export interface PlayerAnswer {
   isMultipleChoice: boolean;
   timeTaken: number; // in seconds
   score: number;
+  titleMatch?: boolean;
+  artistMatch?: boolean;
 }
 
 export enum GameStatus {

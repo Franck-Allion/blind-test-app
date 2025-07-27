@@ -1,5 +1,6 @@
 
 
+
 import { useCallback, useRef, useEffect } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { evaluateAnswer } from '../services/geminiService';
@@ -52,6 +53,8 @@ export const useGameActions = () => {
             isMultipleChoice: false,
             timeTaken,
             score,
+            titleMatch: evaluation.titleMatch,
+            artistMatch: evaluation.artistMatch,
         };
         socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game.id, answer: playerAnswer } });
         socketService.send({type: 'SET_LOADING', payload: false});
@@ -126,7 +129,9 @@ export const useGameActions = () => {
                     timeTaken,
                     score,
                     songTitle: titleCorrect ? currentSong.title : "Some other song",
-                    artist: artistCorrect ? currentSong.artist : "Some other artist"
+                    artist: artistCorrect ? currentSong.artist : "Some other artist",
+                    titleMatch: titleCorrect,
+                    artistMatch: artistCorrect,
                 };
 
                 // Re-check the game state inside the timeout to ensure the round is still active
