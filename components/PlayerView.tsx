@@ -160,7 +160,7 @@ const PlayerView = () => {
   return (
     <div className="bg-slate-800 p-6 md:p-8 rounded-lg shadow-2xl animate-slide-in-up">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold">Question {game.currentSongIndex + 1} / {game.playlist.length}</h2>
+        <h2 className="text-3xl font-bold">Song {game.currentSongIndex + 1} / {game.playlist.length}</h2>
         <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-full">
             <Clock className={timerColor} size={24} />
             <span className={`text-2xl font-mono font-bold ${timerColor}`}>{timeRemaining}s</span>

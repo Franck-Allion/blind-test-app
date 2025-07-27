@@ -26,12 +26,14 @@ export const SONG_CATALOG: Song[] = [
     year: 1994,
     difficulty: 1,
     tags: ['90s', 'Animation', 'Movie'],
-    movieTitle: 'The Lion King',
-    audioUrls: ['https://cdn.pixabay.com/download/audio/2022/08/03/audio_504746f194.mp3?filename=a-happy-and-fun-kids-song-for-games-and-videos-3932.mp3'],
+    movieTitle: 'Le roi Lion',
+    audioUrls: ['/public/audio/hakuna-matata-01.mp3','/public/audio/hakuna-matata-02.mp3','/public/audio/hakuna-matata-03.mp3'],
     distractors: [
       'Aladdin',
-      'The Little Mermaid',
-      'Beauty and the Beast',
+      'La petite sirène',
+      'Pinocchio',
+      'Frère des ours',
+      'Dinosaure'
     ],
   },
 ];
