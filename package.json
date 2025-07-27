@@ -8,6 +8,15 @@
     "install-all": "npm install && npm install --prefix server"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/react": "^19.1.8",
+    "concurrently": "^8.2.2",
+    "vite": "^7.0.6"
+  },
+  "dependencies": {
+    "@google/genai": "^1.11.0",
+    "@types/react-router-dom": "^5.3.3",
+    "lucide-react": "^0.526.0",
+    "qrcode.react": "^4.2.0",
+    "react-router-dom": "^7.7.1"
   }
 }
