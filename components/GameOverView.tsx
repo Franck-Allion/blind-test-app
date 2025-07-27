@@ -1,15 +1,17 @@
-import React from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
-import { Trophy, Clock, RotateCw } from 'lucide-react';
+import { Trophy, Clock, RotateCw, BarChart3 } from 'lucide-react';
 import { socketService } from '../services/socketService';
+import DetailedResults from './DetailedResults';
 
 const GameOverView = () => {
     const navigate = useNavigate();
     const { state, dispatch } = useGame();
     const { resetGame } = useGameActions();
-    const { game } = state;
+    const { game, playerId } = state;
+    const [showDetailedResults, setShowDetailedResults] = useState(false);
 
     if (!game) return null;
 
@@ -76,6 +78,28 @@ const GameOverView = () => {
                     })}
                 </ul>
             </div>
+
+            {/* Toggle for detailed results */}
+            <div className="mt-8 mb-8">
+                <button
+                    onClick={() => setShowDetailedResults(!showDetailedResults)}
+                    className="flex items-center justify-center mx-auto gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-500 transition-colors"
+                >
+                    <BarChart3 size={20} />
+                    {showDetailedResults ? 'Hide' : 'Show'} Detailed Results
+                </button>
+            </div>
+
+            {/* Detailed Results Section */}
+            {showDetailedResults && (
+                <div className="mb-8">
+                    <DetailedResults 
+                        roundHistory={game.roundHistory || []}
+                        players={players}
+                        currentPlayerId={playerId}
+                    />
+                </div>
+            )}
 
              <div className="mt-8">
                 <button

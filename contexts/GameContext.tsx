@@ -39,7 +39,17 @@ const gameReducer = (state: GameState, action: Action): GameState => {
         .map((songId: string) => SONG_CATALOG.find(s => s.id === songId))
         .filter((song: Song | undefined): song is Song => !!song);
       
-      const clientGame: Game = { ...serverGame, playlist: enrichedPlaylist };
+      // Enrich roundHistory by converting songId to full Song objects
+      const enrichedRoundHistory = (serverGame.roundHistory || []).map((round: any) => ({
+        ...round,
+        song: SONG_CATALOG.find(s => s.id === round.songId) || null
+      })).filter((round: any) => round.song !== null);
+      
+      const clientGame: Game = { 
+        ...serverGame, 
+        playlist: enrichedPlaylist,
+        roundHistory: enrichedRoundHistory
+      };
 
       return { ...state, game: clientGame, isLoading: false };
     }

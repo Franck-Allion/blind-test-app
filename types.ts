@@ -40,6 +40,18 @@ export interface PlayerAnswer {
   artistMatch?: boolean;
 }
 
+export interface RoundResult {
+  songIndex: number;
+  song: Song;
+  answers: PlayerAnswer[];
+}
+
+export interface ServerRoundResult {
+  songIndex: number;
+  songId: string; // Server stores songId, client enriches to full Song
+  answers: PlayerAnswer[];
+}
+
 export enum GameStatus {
   CONFIGURING = 'CONFIGURING',
   LOBBY = 'LOBBY',
@@ -56,4 +68,5 @@ export interface Game {
   players: Player[];
   currentSongIndex: number;
   currentRoundAnswers: PlayerAnswer[];
+  roundHistory: RoundResult[]; // Complete history of all rounds
 }

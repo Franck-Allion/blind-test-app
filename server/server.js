@@ -60,6 +60,7 @@ app.post('/api/create-game', (req, res) => {
         players: [organizer],
         currentSongIndex: -1,
         currentRoundAnswers: [],
+        roundHistory: [],
     };
 
     console.log(`Game created: ${gameId} by organizer ${organizerPlayerId}`);
@@ -96,6 +97,17 @@ const endRoundForGame = (gameId) => {
     const game = games[gameId];
     if (game && game.status === 'IN_PROGRESS') {
         console.log(`[${gameId}] Round ended. Either by time or all players answered.`);
+        
+        // Save round result to history before clearing answers
+        if (game.currentSongIndex >= 0 && game.playlist[game.currentSongIndex]) {
+            const roundResult = {
+                songIndex: game.currentSongIndex,
+                songId: game.playlist[game.currentSongIndex], // Store songId, client will enrich
+                answers: [...game.currentRoundAnswers]
+            };
+            game.roundHistory.push(roundResult);
+        }
+        
         // Clear any running timer
         if (gameTimers[gameId]) {
             clearTimeout(gameTimers[gameId]);
