@@ -49,11 +49,14 @@ app.post('/api/create-game', (req, res) => {
         isOrganizer: true,
     };
 
+    // Shuffle the playlist to randomize the song order for this game session.
+    const shuffledPlaylist = [...songIds].sort(() => Math.random() - 0.5);
+
     games[gameId] = {
         id: gameId,
         status: 'LOBBY',
         settings,
-        playlist: songIds,
+        playlist: shuffledPlaylist, // Use the shuffled list
         players: [organizer],
         currentSongIndex: -1,
         currentRoundAnswers: [],
