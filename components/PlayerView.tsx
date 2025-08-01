@@ -17,6 +17,7 @@ const PlayerView = () => {
   const [hasAnswered, setHasAnswered] = useState(false);
   const [showMcq, setShowMcq] = useState(false);
   const [isPreparingSong, setIsPreparingSong] = useState(true);
+  const [persistentAnswerType, setPersistentAnswerTypeState] = useState<'multiple-choice' | 'free-text' | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const pauseTimerRef = useRef<number | null>(null);
@@ -25,12 +26,52 @@ const PlayerView = () => {
   const currentSong = game ? game.playlist[game.currentSongIndex] : null;
   const isMovieSong = currentSong?.tags.includes('Movie') && currentSong.movieTitle;
 
+  // Helper functions for persistent choice tracking
+  const getChoiceStorageKey = (gameId: string, playerId: string, roundIndex: number) => 
+    `blindtest-choice-${gameId}-${playerId}-${roundIndex}`;
+
+  const getPersistentChoiceType = (gameId: string, playerId: string, roundIndex: number): 'multiple-choice' | 'free-text' | null => {
+    if (!gameId || !playerId) return null;
+    const stored = localStorage.getItem(getChoiceStorageKey(gameId, playerId, roundIndex));
+    return stored as 'multiple-choice' | 'free-text' | null;
+  };
+
+  const setPersistentChoiceType = (gameId: string, playerId: string, roundIndex: number, choiceType: 'multiple-choice' | 'free-text') => {
+    if (!gameId || !playerId) return;
+    localStorage.setItem(getChoiceStorageKey(gameId, playerId, roundIndex), choiceType);
+  };
+
+  // Helper functions for tracking actual answer submission
+  const getSubmissionStorageKey = (gameId: string, playerId: string, roundIndex: number) => 
+    `blindtest-submitted-${gameId}-${playerId}-${roundIndex}`;
+
+  const hasSubmittedAnswer = (gameId: string, playerId: string, roundIndex: number): boolean => {
+    if (!gameId || !playerId) return false;
+    const stored = localStorage.getItem(getSubmissionStorageKey(gameId, playerId, roundIndex));
+    return stored === 'true';
+  };
+
+  const markAnswerSubmitted = (gameId: string, playerId: string, roundIndex: number) => {
+    if (!gameId || !playerId) return;
+    localStorage.setItem(getSubmissionStorageKey(gameId, playerId, roundIndex), 'true');
+  };
+
   useEffect(() => {
     if (game && playerId) {
         const playerHasAnsweredThisRound = game.currentRoundAnswers.some(a => a.playerId === playerId);
-        setHasAnswered(playerHasAnsweredThisRound);
+        
+        // Check persistent storage for choice type
+        const storedChoiceType = getPersistentChoiceType(game.id, playerId, game.currentSongIndex);
+        setPersistentAnswerTypeState(storedChoiceType);
+        
+        // Check if player has actually submitted an answer (not just chosen a type)
+        const hasSubmittedPersistently = hasSubmittedAnswer(game.id, playerId, game.currentSongIndex);
+        
+        // Player has answered if they're in current round answers OR if they have actually submitted
+        const hasAnsweredPersistently = playerHasAnsweredThisRound || hasSubmittedPersistently;
+        setHasAnswered(hasAnsweredPersistently);
     }
-  }, [game?.currentRoundAnswers, playerId]);
+  }, [game?.currentRoundAnswers, game?.currentSongIndex, game?.id, playerId]);
 
   useEffect(() => {
     if (!currentSong || !game) return;
@@ -39,7 +80,14 @@ const PlayerView = () => {
     setIsPreparingSong(true);
     setUserAnswer({ title: '', artist: '' });
     setMcqOptions([]);
-    setShowMcq(false);
+    
+    // Check if player already made a choice for this round
+    if (game && playerId) {
+      const storedChoice = getPersistentChoiceType(game.id, playerId, game.currentSongIndex);
+      setShowMcq(storedChoice === 'multiple-choice');
+    } else {
+      setShowMcq(false);
+    }
     
     // Prepare MCQ options immediately
     let options: string[];
@@ -125,20 +173,51 @@ const PlayerView = () => {
   const onFreeTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userAnswer.title && !userAnswer.artist) return;
-    if (hasAnswered || !game) return;
+    if (hasAnswered || !game || !playerId) return;
+    
+    // Prevent submission if player already chose multiple choice
+    if (persistentAnswerType === 'multiple-choice') return;
+    
+    // Store that this player chose free text for this round
+    setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'free-text');
+    
+    // Mark that this player has actually submitted an answer
+    markAnswerSubmitted(game.id, playerId, game.currentSongIndex);
+    
     const timeTaken = game.settings.timeToAnswer - timeRemaining;
     handlePlayerAnswer(userAnswer, timeTaken);
     setHasAnswered(true);
   };
   
   const onMcqSubmit = (choice: string) => {
-    if (hasAnswered || !game) return;
+    if (hasAnswered || !game || !playerId) return;
+    
+    // Prevent submission if player already chose free text
+    if (persistentAnswerType === 'free-text') return;
+    
+    // Store that this player chose multiple choice for this round (this should already be stored from handleShowMcqClick)
+    setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'multiple-choice');
+    
+    // Mark that this player has actually submitted an answer
+    markAnswerSubmitted(game.id, playerId, game.currentSongIndex);
+    
     const timeTaken = game.settings.timeToAnswer - timeRemaining;
     handleMultipleChoiceAnswer(choice, timeTaken);
     setHasAnswered(true);
   };
 
   const handleShowMcqClick = () => {
+    if (!game || !playerId) return;
+    
+    // Check localStorage directly to be sure
+    const currentChoice = getPersistentChoiceType(game.id, playerId, game.currentSongIndex);
+    
+    // Prevent switching to multiple choice if player already chose free text
+    if (currentChoice === 'free-text') return;
+    
+    // Store that this player chose to see multiple choice for this round
+    setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'multiple-choice');
+    setPersistentAnswerTypeState('multiple-choice');
     setShowMcq(true);
   };
 
@@ -175,20 +254,53 @@ const PlayerView = () => {
       {hasAnswered ? (
         <div className="text-center p-8 bg-slate-900 rounded-lg">
             <h3 className="text-2xl font-bold text-emerald-400">Answer Submitted!</h3>
-            <p className="text-slate-300">Waiting for other players or for the time to run out...</p>
+            <p className="text-slate-300">
+              {hasSubmittedAnswer(game?.id || '', playerId || '', game?.currentSongIndex || 0)
+                ? persistentAnswerType === 'multiple-choice' 
+                  ? 'You submitted a multiple choice answer (1 point)'
+                  : `You submitted a ${isMovieSong ? 'free text answer (3 points)' : 'free text answer (up to 5 points)'}`
+                : 'Waiting for other players or for the time to run out...'
+              }
+            </p>
         </div>
       ) : (
         <div className="space-y-6">
-            {!showMcq ? (
+            {!showMcq && persistentAnswerType !== 'multiple-choice' ? (
               <>
                 <form onSubmit={onFreeTextSubmit} className="space-y-4">
                     <p className="font-semibold text-lg text-center">
                       {isMovieSong ? 'Type your answer (3 points)' : 'Type your answer (5 points for both, 2 for one)'}
                     </p>
                     <div className={isMovieSong ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
-                        <input type="text" placeholder={isMovieSong ? "Movie Name" : "Song Title"} value={userAnswer.title} onChange={e => setUserAnswer({...userAnswer, title: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
+                        <input 
+                          type="text" 
+                          placeholder={isMovieSong ? "Movie Name" : "Song Title"} 
+                          value={userAnswer.title} 
+                          onChange={e => {
+                            setUserAnswer({...userAnswer, title: e.target.value});
+                            // Lock into free text choice once user starts typing
+                            if (e.target.value.trim() && game && playerId && !persistentAnswerType) {
+                              setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'free-text');
+                              setPersistentAnswerTypeState('free-text');
+                            }
+                          }} 
+                          className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"
+                        />
                         {!isMovieSong && (
-                          <input type="text" placeholder="Artist" value={userAnswer.artist} onChange={e => setUserAnswer({...userAnswer, artist: e.target.value})} className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"/>
+                          <input 
+                            type="text" 
+                            placeholder="Artist" 
+                            value={userAnswer.artist} 
+                            onChange={e => {
+                              setUserAnswer({...userAnswer, artist: e.target.value});
+                              // Lock into free text choice once user starts typing
+                              if (e.target.value.trim() && game && playerId && !persistentAnswerType) {
+                                setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'free-text');
+                                setPersistentAnswerTypeState('free-text');
+                              }
+                            }} 
+                            className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"
+                          />
                         )}
                     </div>
                     <button type="submit" className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 font-bold p-3 rounded-md transition-colors"><Send size={18}/>Submit Answer</button>
@@ -200,10 +312,12 @@ const PlayerView = () => {
                     <hr className="flex-grow border-slate-600"/>
                 </div>
 
-                <button onClick={handleShowMcqClick} className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 font-bold p-3 rounded-md transition-colors">
-                    <HelpCircle size={18}/>
-                    Show Multiple Choice (1 point)
-                </button>
+                {persistentAnswerType !== 'free-text' && (
+                  <button onClick={handleShowMcqClick} className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 font-bold p-3 rounded-md transition-colors">
+                      <HelpCircle size={18}/>
+                      Show Multiple Choice (1 point)
+                  </button>
+                )}
               </>
             ) : (
               <div>
