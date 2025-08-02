@@ -12,6 +12,7 @@ export const SONG_CATALOG: Song[] = [
     // Metal, Punk, Grunge, Movie
     tags: ['80s', 'Pop', 'Classic'],
     audioUrls: ['/public/audio/001/billie-jean-01.mp3','/public/audio/001/billie-jean-02.mp3'],
+    proofAudioUrl: '/public/audio/001/billie-jean-answer.mp3', // Full song for proof
     distractors: [
       'Take on Me - a-ha',
       'Thriller - Michael Jackson',
@@ -28,6 +29,7 @@ export const SONG_CATALOG: Song[] = [
     tags: ['90s', 'Animation', 'Movie'],
     movieTitle: 'Le roi Lion',
     audioUrls: ['/public/audio/001/hakuna-matata-01.mp3','/public/audio/001/hakuna-matata-02.mp3','/public/audio/001/hakuna-matata-03.mp3'],
+    proofAudioUrl: '/public/audio/001/hakuna-matata-full.mp3', // Full song for proof
     distractors: [
       'Aladdin',
       'La petite sirène',

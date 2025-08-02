@@ -10,6 +10,7 @@ export interface Song {
   distractors: string[];
   difficulty: number; // 1 (easy) to 5 (very difficult)
   movieTitle?: string;
+  proofAudioUrl?: string; // Optional full song/proof audio to play at end of round
 }
 
 export interface GameSettings {

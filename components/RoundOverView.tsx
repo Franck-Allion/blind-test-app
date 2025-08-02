@@ -1,14 +1,15 @@
 
 
-import React from 'react';
+import { useState } from 'react';
 import { useGame } from '../contexts/GameContext';
 import { useGameActions } from '../hooks/useGameActions';
-import { ArrowRight, Music, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { ArrowRight, Music, CheckCircle2, XCircle, Play, Pause } from 'lucide-react';
 
 const RoundOverView = () => {
-    const { state } = useGame();
+    const { state, playSong, pauseSong } = useGame();
     const { game, isOrganizer, playerId } = state;
     const { nextRound, finishGame } = useGameActions();
+    const [isPlayingProof, setIsPlayingProof] = useState(false);
 
     if (!game) return null;
 
@@ -21,6 +22,21 @@ const RoundOverView = () => {
             finishGame();
         } else {
             nextRound();
+        }
+    };
+
+    const handleProofAudio = () => {
+        if (!currentSong.proofAudioUrl) return;
+        
+        if (isPlayingProof) {
+            pauseSong();
+            setIsPlayingProof(false);
+        } else {
+            playSong(currentSong.proofAudioUrl, () => {
+                // When the proof audio ends, reset the playing state
+                setIsPlayingProof(false);
+            });
+            setIsPlayingProof(true);
         }
     };
     
@@ -127,6 +143,36 @@ const RoundOverView = () => {
                   </p>
                 )}
             </div>
+
+            {/* Proof Audio Section - Only for Organizer */}
+            {isOrganizer && currentSong.proofAudioUrl && (
+                <div className="bg-slate-800 p-6 rounded-lg mb-6 animate-fade-in">
+                    <h3 className="text-lg font-semibold mb-4 text-slate-300">Organizer Controls</h3>
+                    <button
+                        onClick={handleProofAudio}
+                        className={`flex items-center justify-center gap-3 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                            isPlayingProof 
+                                ? 'bg-red-600 hover:bg-red-500 text-white' 
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        }`}
+                    >
+                        {isPlayingProof ? (
+                            <>
+                                <Pause size={20} />
+                                Stop Proof Audio
+                            </>
+                        ) : (
+                            <>
+                                <Play size={20} />
+                                Play Proof Audio
+                            </>
+                        )}
+                    </button>
+                    <p className="text-sm text-slate-400 mt-2">
+                        Play the full song or extended clip to prove the answer to players
+                    </p>
+                </div>
+            )}
 
             {renderPlayerFeedback()}
 
