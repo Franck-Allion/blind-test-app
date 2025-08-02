@@ -3704,7 +3704,7 @@ export const SONG_CATALOG: Song[] = [
   ]
 },
 {
-    id: 'song-212',
+    id: 'song-212-1',
   "title": "Près des étoiles",
   "artist": "Soprano",
   "year": 2021,

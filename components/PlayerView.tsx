@@ -22,6 +22,8 @@ const PlayerView = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionConfirmed, setSubmissionConfirmed] = useState(false);
+  
+  const submissionTimeoutRef = useRef<number | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const pauseTimerRef = useRef<number | null>(null);
@@ -65,42 +67,61 @@ const PlayerView = () => {
     setIsSubmitting(true);
     setSubmissionError(null);
     
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        // Store a pending submission marker
-        const pendingKey = `blindtest-pending-${game?.id}-${playerId}-${game?.currentSongIndex}`;
-        localStorage.setItem(pendingKey, JSON.stringify(answerData));
-        
-        // Send the submission
-        socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game?.id, answer: answerData } });
-        
-        // Wait a bit to see if we get confirmation
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check if our answer appeared in the game state
-        if (game?.currentRoundAnswers?.some(a => a.playerId === playerId)) {
-          // Success! Clear pending marker
-          localStorage.removeItem(pendingKey);
-          setSubmissionConfirmed(true);
-          setIsSubmitting(false);
-          return true;
-        }
-        
-        if (attempt === maxRetries) {
-          throw new Error('Submission not confirmed after multiple attempts');
-        }
-        
-        console.log(`Submission attempt ${attempt} failed, retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-        
-      } catch (error) {
-        console.error(`Submission attempt ${attempt} failed:`, error);
-        if (attempt === maxRetries) {
-          setSubmissionError('Failed to submit answer. Please try again.');
-          setIsSubmitting(false);
-          return false;
+    // Set a failsafe timeout to prevent stuck submission state
+    if (submissionTimeoutRef.current) {
+      clearTimeout(submissionTimeoutRef.current);
+    }
+    submissionTimeoutRef.current = window.setTimeout(() => {
+      console.log('Submission timeout - resetting state');
+      setIsSubmitting(false);
+      setSubmissionError('Submission took too long. Please try again.');
+    }, 10000); // 10 second timeout
+    
+    try {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Store a pending submission marker
+          const pendingKey = `blindtest-pending-${game?.id}-${playerId}-${game?.currentSongIndex}`;
+          localStorage.setItem(pendingKey, JSON.stringify(answerData));
+          
+          // Send the submission
+          socketService.send({ type: 'SUBMIT_ANSWER', payload: { gameId: game?.id, answer: answerData } });
+          
+          // Wait a bit to see if we get confirmation
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Check if our answer appeared in the game state
+          if (game?.currentRoundAnswers?.some(a => a.playerId === playerId)) {
+            // Success! Clear pending marker
+            localStorage.removeItem(pendingKey);
+            setSubmissionConfirmed(true);
+            setIsSubmitting(false);
+            return true;
+          }
+          
+          if (attempt === maxRetries) {
+            throw new Error('Submission not confirmed after multiple attempts');
+          }
+          
+          console.log(`Submission attempt ${attempt} failed, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          
+        } catch (error) {
+          console.error(`Submission attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) {
+            setSubmissionError('Failed to submit answer. Please try again.');
+            setIsSubmitting(false);
+            return false;
+          }
         }
       }
+    } finally {
+      // Always ensure isSubmitting is reset and clear timeout
+      if (submissionTimeoutRef.current) {
+        clearTimeout(submissionTimeoutRef.current);
+        submissionTimeoutRef.current = null;
+      }
+      setIsSubmitting(false);
     }
     return false;
   };
@@ -390,7 +411,11 @@ const PlayerView = () => {
                               setPersistentAnswerTypeState('free-text');
                             }
                           }} 
-                          className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-700 border border-slate-600 rounded-md p-4 text-base focus:ring-2 focus:ring-indigo-500 focus:outline-none touch-manipulation"
+                          style={{ minHeight: '44px', fontSize: '16px' }}
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="words"
                         />
                         {!isMovieSong && (
                           <input 
@@ -405,18 +430,24 @@ const PlayerView = () => {
                                 setPersistentAnswerTypeState('free-text');
                               }
                             }} 
-                            className="w-full bg-slate-700 border border-slate-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500"
+                            className="w-full bg-slate-700 border border-slate-600 rounded-md p-4 text-base focus:ring-2 focus:ring-indigo-500 focus:outline-none touch-manipulation"
+                            style={{ minHeight: '44px', fontSize: '16px' }}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="words"
                           />
                         )}
                     </div>
                     <button 
                       type="submit" 
                       disabled={isSubmitting}
-                      className={`w-full flex items-center justify-center gap-2 font-bold p-3 rounded-md transition-colors ${
+                      className={`w-full flex items-center justify-center gap-2 font-bold p-4 rounded-md transition-colors touch-manipulation ${
                         isSubmitting 
                           ? 'bg-gray-600 cursor-not-allowed' 
-                          : 'bg-indigo-600 hover:bg-indigo-500'
+                          : 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700'
                       }`}
+                      style={{ minHeight: '48px', fontSize: '16px' }}
+                      onTouchStart={() => {}} // Ensures iOS treats this as clickable
                     >
                       {isSubmitting ? (
                         <>
@@ -451,7 +482,12 @@ const PlayerView = () => {
                 </div>
 
                 {persistentAnswerType !== 'free-text' && (
-                  <button onClick={handleShowMcqClick} className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 font-bold p-3 rounded-md transition-colors">
+                  <button 
+                    onClick={handleShowMcqClick} 
+                    className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 active:bg-slate-500 font-bold p-4 rounded-md transition-colors touch-manipulation"
+                    style={{ minHeight: '48px', fontSize: '16px' }}
+                    onTouchStart={() => {}} // Ensures iOS treats this as clickable
+                  >
                       <HelpCircle size={18}/>
                       Show Multiple Choice (1 point)
                   </button>
@@ -465,18 +501,20 @@ const PlayerView = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {mcqOptions.map((option, index) => (
                   <button 
-                    key={index} 
-                    onClick={() => onMcqSubmit(option)} 
-                    disabled={isSubmitting}
-                  className={`text-left p-3 rounded-md transition-colors ${
+                  key={index} 
+                  onClick={() => onMcqSubmit(option)} 
+                  disabled={isSubmitting}
+                  className={`text-left p-4 rounded-md transition-colors touch-manipulation ${
                   isSubmitting 
-                    ? 'bg-gray-700 cursor-not-allowed text-gray-400' 
-                        : 'bg-slate-700 hover:bg-slate-600'
-                      }`}
+                  ? 'bg-gray-700 cursor-not-allowed text-gray-400' 
+                  : 'bg-slate-700 hover:bg-slate-600 active:bg-slate-500'
+                  }`}
+                    style={{ minHeight: '44px', fontSize: '16px' }}
+                  onTouchStart={() => {}} // Ensures iOS treats this as clickable
                   >
-                        {option}
-                        </button>
-                        ))}
+                          {option}
+                          </button>
+                      ))}
                     </div>
                     
                   {submissionError && (
