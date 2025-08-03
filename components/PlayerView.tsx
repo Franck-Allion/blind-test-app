@@ -9,7 +9,7 @@ import Spinner from './Spinner';
 
 const PlayerView = () => {
   const { state, playSong, pauseSong } = useGame();
-  const { handlePlayerAnswer, handleMultipleChoiceAnswer, runBotActions } = useGameActions();
+  const { handlePlayerAnswer, runBotActions } = useGameActions();
   const { game, playerId, isOrganizer } = state;
   
   const [userAnswer, setUserAnswer] = useState({ title: '', artist: '' });
@@ -22,6 +22,7 @@ const PlayerView = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionConfirmed, setSubmissionConfirmed] = useState(false);
+  const [clickedOption, setClickedOption] = useState<string | null>(null);
   
   const submissionTimeoutRef = useRef<number | null>(null);
 
@@ -83,7 +84,9 @@ const PlayerView = () => {
 
   // Reliable submission function with retry logic
   const submitAnswerWithRetry = async (answerData: any, maxRetries = 3) => {
-    setIsSubmitting(true);
+    if (!isSubmitting) {
+      setIsSubmitting(true);
+    }
     setSubmissionError(null);
     
     // Set a failsafe timeout to prevent stuck submission state
@@ -186,6 +189,7 @@ const PlayerView = () => {
     setIsSubmitting(false);
     setSubmissionError(null);
     setSubmissionConfirmed(false);
+    setClickedOption(null);
     
     // Clear any stored answer content from previous round
     if (game && playerId) {
@@ -290,6 +294,10 @@ const PlayerView = () => {
     // Prevent submission if player already chose multiple choice
     if (persistentAnswerType === 'multiple-choice') return;
     
+    // Immediately set submitting state to disable button and show animation
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    
     // Store that this player chose free text for this round
     setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'free-text');
     
@@ -317,6 +325,9 @@ const PlayerView = () => {
     } catch (error) {
       console.error('Free text submission failed:', error);
       setSubmissionError('Failed to submit answer. Please try again.');
+    } finally {
+      // Reset submitting state
+      setIsSubmitting(false);
     }
   };
   
@@ -325,6 +336,11 @@ const PlayerView = () => {
     
     // Prevent submission if player already chose free text
     if (persistentAnswerType === 'free-text') return;
+
+    // Immediately set submitting state and track clicked option for animation
+    setIsSubmitting(true);
+    setClickedOption(choice);
+    setSubmissionError(null);
     
     // Store that this player chose multiple choice for this round (this should already be stored from handleShowMcqClick)
     setPersistentChoiceType(game.id, playerId, game.currentSongIndex, 'multiple-choice');
@@ -370,10 +386,15 @@ const PlayerView = () => {
     };
     
     // Use our reliable submission
-    const success = await submitAnswerWithRetry(answerData);
-    if (success) {
-      markAnswerSubmitted(game.id, playerId, game.currentSongIndex);
-      setHasAnswered(true);
+    try {
+      const success = await submitAnswerWithRetry(answerData);
+      if (success) {
+        markAnswerSubmitted(game.id, playerId, game.currentSongIndex);
+        setHasAnswered(true);
+      }
+    } finally {
+      // Reset clicked option
+      setClickedOption(null);
     }
   };
 
@@ -532,11 +553,11 @@ const PlayerView = () => {
                     </div>
                     <button 
                       type="submit" 
-                      disabled={isSubmitting}
-                      className={`w-full flex items-center justify-center gap-2 font-bold p-4 rounded-md transition-colors touch-manipulation ${
-                        isSubmitting 
-                          ? 'bg-gray-600 cursor-not-allowed' 
-                          : 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700'
+                      disabled={isSubmitting || hasAnswered || !userAnswer.title && !userAnswer.artist}
+                      className={`w-full flex items-center justify-center gap-2 font-bold p-4 rounded-md transition-all duration-200 touch-manipulation ${
+                        isSubmitting || hasAnswered || (!userAnswer.title && !userAnswer.artist)
+                          ? 'bg-gray-600 cursor-not-allowed opacity-70' 
+                          : 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 hover:scale-105'
                       }`}
                       style={{ minHeight: '48px', fontSize: '16px' }}
                       onTouchStart={() => {}} // Ensures iOS treats this as clickable
@@ -544,7 +565,7 @@ const PlayerView = () => {
                       {isSubmitting ? (
                         <>
                           <Loader className="animate-spin" size={18}/>
-                          Submitting...
+                          <span className="animate-pulse">Submitting...</span>
                         </>
                       ) : (
                         <>
@@ -576,7 +597,12 @@ const PlayerView = () => {
                 {persistentAnswerType !== 'free-text' && (
                   <button 
                     onClick={handleShowMcqClick} 
-                    className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 active:bg-slate-500 font-bold p-4 rounded-md transition-colors touch-manipulation"
+                    disabled={isSubmitting || hasAnswered}
+                    className={`w-full flex items-center justify-center gap-2 font-bold p-4 rounded-md transition-all duration-200 touch-manipulation ${
+                      isSubmitting || hasAnswered
+                        ? 'bg-gray-600 cursor-not-allowed opacity-70'
+                        : 'bg-slate-700 hover:bg-slate-600 active:bg-slate-500 hover:scale-105'
+                    }`}
                     style={{ minHeight: '48px', fontSize: '16px' }}
                     onTouchStart={() => {}} // Ensures iOS treats this as clickable
                   >
@@ -595,16 +621,23 @@ const PlayerView = () => {
                   <button 
                   key={index} 
                   onClick={() => onMcqSubmit(option)} 
-                  disabled={isSubmitting}
-                  className={`text-left p-4 rounded-md transition-colors touch-manipulation ${
-                  isSubmitting 
-                  ? 'bg-gray-700 cursor-not-allowed text-gray-400' 
-                  : 'bg-slate-700 hover:bg-slate-600 active:bg-slate-500'
+                  disabled={isSubmitting || hasAnswered}
+                  className={`text-left p-4 rounded-md transition-all duration-200 touch-manipulation ${
+                  isSubmitting || hasAnswered
+                  ? 'bg-gray-700 cursor-not-allowed text-gray-400 opacity-70' 
+                  : 'bg-slate-700 hover:bg-slate-600 active:bg-slate-500 hover:scale-105'
                   }`}
                     style={{ minHeight: '44px', fontSize: '16px' }}
                   onTouchStart={() => {}} // Ensures iOS treats this as clickable
                   >
-                          {option}
+                          {isSubmitting && option === clickedOption ? (
+                            <div className="flex items-center gap-2">
+                              <Loader className="animate-spin" size={16}/>
+                              <span className="animate-pulse">{option}</span>
+                            </div>
+                          ) : (
+                            option
+                          )}
                           </button>
                       ))}
                     </div>
