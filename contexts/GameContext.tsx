@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { Game, GameStatus, Song } from '../types';
 import { socketService } from '../services/socketService';
-import { SONG_CATALOG } from '../services/mockData';
+import { SONG_CATALOG } from '../public/audio/mockData';
 
 interface GameState {
   game: Game | null;

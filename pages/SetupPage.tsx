@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
-import { SONG_CATALOG } from '../services/mockData';
+import { SONG_CATALOG } from '../public/audio/mockData';
 import { generatePlaylistFromPrompt } from '../services/geminiService';
 import { GameSettings, Song } from '../types';
 import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff, Shuffle, Edit, Star, Search, BrainCircuit, Sparkles, Loader } from 'lucide-react';

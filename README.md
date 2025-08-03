@@ -110,7 +110,7 @@ Adding a new song involves two main steps: preparing the audio files and updatin
 
 
 ### Step 2: Update the Catalog File
-1.  Open the `services/mockData.ts` file.
+1.  Open the `public/audio/mockData.ts` file.
 2.  Find the `SONG_CATALOG` array.
 3.  Add a new song object to the array. Use the following structure as a template:
 
