@@ -62,6 +62,25 @@ const PlayerView = () => {
     localStorage.setItem(getSubmissionStorageKey(gameId, playerId, roundIndex), 'true');
   };
 
+  // Helper functions for storing submitted answer content
+  const getAnswerContentStorageKey = (gameId: string, playerId: string, roundIndex: number) => 
+    `blindtest-answer-content-${gameId}-${playerId}-${roundIndex}`;
+
+  const storeSubmittedAnswer = (gameId: string, playerId: string, roundIndex: number, answerContent: any) => {
+    if (!gameId || !playerId) return;
+    localStorage.setItem(getAnswerContentStorageKey(gameId, playerId, roundIndex), JSON.stringify(answerContent));
+  };
+
+  const getSubmittedAnswer = (gameId: string, playerId: string, roundIndex: number) => {
+    if (!gameId || !playerId) return null;
+    const stored = localStorage.getItem(getAnswerContentStorageKey(gameId, playerId, roundIndex));
+    try {
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
   // Reliable submission function with retry logic
   const submitAnswerWithRetry = async (answerData: any, maxRetries = 3) => {
     setIsSubmitting(true);
@@ -167,6 +186,12 @@ const PlayerView = () => {
     setIsSubmitting(false);
     setSubmissionError(null);
     setSubmissionConfirmed(false);
+    
+    // Clear any stored answer content from previous round
+    if (game && playerId) {
+      const answerContentKey = getAnswerContentStorageKey(game.id, playerId, game.currentSongIndex);
+      localStorage.removeItem(answerContentKey);
+    }
     
     // Check if player already made a choice for this round
     if (game && playerId) {
@@ -274,6 +299,15 @@ const PlayerView = () => {
     const currentSong = game.playlist[game.currentSongIndex];
     const isMovieSong = currentSong?.tags.includes('Movie') && currentSong.movieTitle;
     
+    // Store the submitted answer content for display while waiting
+    const answerContent = {
+      type: 'free-text',
+      title: userAnswer.title,
+      artist: userAnswer.artist,
+      isMovieSong
+    };
+    storeSubmittedAnswer(game.id, playerId, game.currentSongIndex, answerContent);
+    
     // We'll let the original handlePlayerAnswer do the AI evaluation, but also use our retry logic
     try {
       await handlePlayerAnswer(userAnswer, timeTaken);
@@ -315,6 +349,16 @@ const PlayerView = () => {
     }
 
     const score = choice === correctAnswerText ? 1 : 0;
+
+    // Store the submitted answer content for display while waiting
+    const answerContent = {
+      type: 'multiple-choice',
+      choice: choice,
+      title: submittedTitle,
+      artist: submittedArtist,
+      isMovieSong
+    };
+    storeSubmittedAnswer(game.id, playerId, game.currentSongIndex, answerContent);
 
     const answerData = {
         playerId,
@@ -381,14 +425,62 @@ const PlayerView = () => {
       {hasAnswered ? (
         <div className="text-center p-8 bg-slate-900 rounded-lg">
             <h3 className="text-2xl font-bold text-emerald-400">Answer Submitted!</h3>
-            <p className="text-slate-300">
-              {hasSubmittedAnswer(game?.id || '', playerId || '', game?.currentSongIndex || 0)
-                ? persistentAnswerType === 'multiple-choice' 
-                  ? 'You submitted a multiple choice answer (1 point)'
-                  : `You submitted a ${isMovieSong ? 'free text answer (3 points)' : 'free text answer (up to 5 points)'}`
-                : 'Waiting for other players or for the time to run out...'
+            {(() => {
+              const submittedAnswer = getSubmittedAnswer(game?.id || '', playerId || '', game?.currentSongIndex || 0);
+              
+              if (submittedAnswer) {
+                return (
+                  <div className="mt-4">
+                    <p className="text-slate-400 text-sm mb-3">Your answer:</p>
+                    
+                    {submittedAnswer.type === 'multiple-choice' ? (
+                      <div className="bg-slate-800 p-4 rounded-lg">
+                        <p className="font-semibold text-white text-lg">{submittedAnswer.choice}</p>
+                        <p className="text-slate-400 text-sm mt-2">Multiple choice answer (1 point if correct)</p>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-800 p-4 rounded-lg space-y-2">
+                        {submittedAnswer.isMovieSong ? (
+                          <div>
+                            <p className="text-slate-400 text-sm">Movie:</p>
+                            <p className="font-semibold text-white text-lg">{submittedAnswer.title || '(not provided)'}</p>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <p className="text-slate-400 text-sm">Title:</p>
+                              <p className="font-semibold text-white text-lg">{submittedAnswer.title || '(not provided)'}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400 text-sm">Artist:</p>
+                              <p className="font-semibold text-white text-lg">{submittedAnswer.artist || '(not provided)'}</p>
+                            </div>
+                          </>
+                        )}
+                        <p className="text-slate-400 text-sm mt-2">
+                          Free text answer ({submittedAnswer.isMovieSong ? '3' : 'up to 5'} points if correct)
+                        </p>
+                      </div>
+                    )}
+                    
+                    <p className="text-slate-300 mt-4">
+                      Waiting for other players or for the time to run out...
+                    </p>
+                  </div>
+                );
+              } else {
+                return (
+                  <p className="text-slate-300 mt-4">
+                    {hasSubmittedAnswer(game?.id || '', playerId || '', game?.currentSongIndex || 0)
+                      ? persistentAnswerType === 'multiple-choice' 
+                        ? 'You submitted a multiple choice answer (1 point)'
+                        : `You submitted a ${isMovieSong ? 'free text answer (3 points)' : 'free text answer (up to 5 points)'}`
+                      : 'Waiting for other players or for the time to run out...'
+                    }
+                  </p>
+                );
               }
-            </p>
+            })()}
         </div>
       ) : (
         <div className="space-y-6">
