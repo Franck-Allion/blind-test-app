@@ -78,3 +78,72 @@ export const evaluateAnswer = async (playerAnswer: { title: string; artist: stri
     };
   }
 };
+
+/**
+ * Generates a playlist of song IDs based on a user prompt.
+ * @param userPrompt - The user's description of the desired playlist.
+ * @param numberOfSongs - The number of songs to select.
+ * @param catalog - The full catalog of available songs.
+ * @returns A promise that resolves to an array of song IDs.
+ */
+export const generatePlaylistFromPrompt = async (userPrompt: string, numberOfSongs: number, catalog: Song[]): Promise<string[]> => {
+    // Simplify the catalog to send only relevant data to the API, saving tokens.
+    const simplifiedCatalog = catalog.map(song => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        year: song.year,
+        tags: song.tags,
+        movieTitle: song.movieTitle,
+        difficulty: song.difficulty
+    }));
+
+    const prompt = `
+        You are an expert music quiz playlist creator. Your task is to select songs from a given catalog to create a themed quiz based on a user's request.
+
+        Here is the catalog of available songs in JSON format:
+        ${JSON.stringify(simplifiedCatalog)}
+
+        Here is the user's request:
+        - Theme/Description: "${userPrompt}"
+        - Number of songs to select: ${numberOfSongs}
+
+        Based on the user's request, please select exactly ${numberOfSongs} songs from the catalog that best fit the theme. Consider all song properties like title, artist, year, tags, and difficulty to make your selection.
+
+        Return your response as a JSON object containing a single key "song_ids", which is an array of the selected song ID strings. Do not include any other text or explanation.
+    `;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        song_ids: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: `An array of exactly ${numberOfSongs} song ID strings that match the user's request.`
+                        }
+                    },
+                    required: ["song_ids"]
+                },
+            }
+        });
+
+        const jsonText = response.text.trim();
+        const result = JSON.parse(jsonText) as { song_ids: string[] };
+        
+        // Ensure the correct number of songs is returned
+        if (result.song_ids && result.song_ids.length > 0) {
+            return result.song_ids.slice(0, numberOfSongs);
+        }
+        return [];
+
+    } catch (error) {
+        console.error("Gemini API Error (generatePlaylistFromPrompt):", error);
+        throw new Error("The AI failed to generate a playlist. Please try a different prompt.");
+    }
+};

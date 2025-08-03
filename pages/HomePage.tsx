@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Music, PlayCircle } from 'lucide-react';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [version, setVersion] = useState('');
+
+  useEffect(() => {
+    fetch('/package.json')
+      .then(response => response.json())
+      .then(data => setVersion(data.version))
+      .catch(error => console.error('Error fetching version:', error));
+  }, []);
 
   const handleCreateGame = () => {
     navigate('/setup');
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
+    <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in relative">
         <div className="relative mb-8">
             <Music className="text-indigo-400" size={128} strokeWidth={1} />
             <PlayCircle className="absolute -bottom-4 -right-4 text-emerald-400 bg-slate-900 rounded-full" size={48} strokeWidth={1.5} />
@@ -28,6 +36,12 @@ const HomePage = () => {
         <PlayCircle size={28} />
         Create a New Game
       </button>
+
+      {version && (
+        <footer className="absolute bottom-4 text-slate-500 text-xs">
+          v{version}
+        </footer>
+      )}
     </div>
   );
 };
