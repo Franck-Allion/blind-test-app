@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGame } from '../contexts/GameContext';
 import { SONG_CATALOG } from '../services/mockData';
 import { GameSettings } from '../types';
-import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff, Shuffle, Edit, Star } from 'lucide-react';
+import { SlidersHorizontal, ListMusic, Check, ArrowRight, Eye, EyeOff, Shuffle, Edit, Star, Search } from 'lucide-react';
 import { socketService } from '../services/socketService';
 
 const SetupPage = () => {
@@ -21,6 +21,7 @@ const SetupPage = () => {
   });
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -29,11 +30,23 @@ const SetupPage = () => {
   }, []);
 
   const filteredSongs = useMemo(() => {
-    if (activeTags.size === 0) {
-      return SONG_CATALOG;
+    // 1. Filter by tags first
+    let songsFilteredByTags = SONG_CATALOG;
+    if (activeTags.size > 0) {
+      songsFilteredByTags = SONG_CATALOG.filter(song => song.tags.some(tag => activeTags.has(tag)));
     }
-    return SONG_CATALOG.filter(song => song.tags.some(tag => activeTags.has(tag)));
-  }, [activeTags]);
+    
+    // 2. Then filter by search query
+    const lowercasedQuery = searchQuery.toLowerCase().trim();
+    if (!lowercasedQuery) {
+        return songsFilteredByTags;
+    }
+
+    return songsFilteredByTags.filter(song =>
+        song.title.toLowerCase().includes(lowercasedQuery) ||
+        song.artist.toLowerCase().includes(lowercasedQuery)
+    );
+  }, [activeTags, searchQuery]);
 
   const handleToggleSong = (songId: string) => {
     setSelectedSongs(prev => {
@@ -188,6 +201,17 @@ const SetupPage = () => {
                             {tag}
                         </button>
                     ))}
+                </div>
+
+                <div className="relative my-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Search by title or artist..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-md py-2 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
                 </div>
             
                 <div className="flex gap-2 my-4">
