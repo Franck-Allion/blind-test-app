@@ -135,19 +135,37 @@ const DetailedResults: React.FC<DetailedResultsProps> = ({ roundHistory, players
                                   {answer.songTitle && (
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-400">Title:</span>
-                                      <span className={answer.titleMatch ? 'text-green-400' : 'text-red-400'}>
+                                      <span className={
+                                        answer.isMultipleChoice 
+                                          ? answer.score > 0 ? 'text-amber-400' : 'text-red-400'
+                                          : answer.titleMatch ? 'text-green-400' : 'text-red-400'
+                                      }>
                                         {answer.songTitle}
                                       </span>
-                                      {answer.titleMatch && <CheckCircle size={12} className="text-green-400" />}
+                                      {((answer.isMultipleChoice && answer.score > 0) || (!answer.isMultipleChoice && answer.titleMatch)) && (
+                                        <CheckCircle 
+                                          size={12} 
+                                          className={answer.isMultipleChoice ? 'text-amber-400' : 'text-green-400'} 
+                                        />
+                                      )}
                                     </div>
                                   )}
                                   {answer.artist && (
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-400">Artist:</span>
-                                      <span className={answer.artistMatch ? 'text-green-400' : 'text-red-400'}>
+                                      <span className={
+                                        answer.isMultipleChoice 
+                                          ? answer.score > 0 ? 'text-amber-400' : 'text-red-400'
+                                          : answer.artistMatch ? 'text-green-400' : 'text-red-400'
+                                      }>
                                         {answer.artist}
                                       </span>
-                                      {answer.artistMatch && <CheckCircle size={12} className="text-green-400" />}
+                                      {((answer.isMultipleChoice && answer.score > 0) || (!answer.isMultipleChoice && answer.artistMatch)) && (
+                                        <CheckCircle 
+                                          size={12} 
+                                          className={answer.isMultipleChoice ? 'text-amber-400' : 'text-green-400'} 
+                                        />
+                                      )}
                                     </div>
                                   )}
                                   {answer.isMultipleChoice && (
